@@ -1,0 +1,15 @@
+/build/
+/reports/
+/dist/
+**/bin/
+**/obj/
+*.dll
+*.exe
+*.bin
+*.shdr
+*.pdb
+*.zip
+*-vs_replace.txt
+*-ps_replace.txt
+.env
+.env.*
