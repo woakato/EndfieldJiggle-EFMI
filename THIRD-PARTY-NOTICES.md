@@ -19,3 +19,9 @@ shader replacements.
 EFMI, XXMI, Windows SDK tools and the game are separately obtained dependencies
 under their own licenses. No such binary dependency is distributed here.
 The GPL license does not apply to game assets or material from other Mod authors.
+
+The separate Windows Mod Release contains hash-specific rendering compatibility
+rules and adapted shader payloads produced from local game shader captures.
+Those Release assets are not part of the source tree and are not relicensed by
+the GPL notices in this repository. Refer to the game publisher's terms and the
+Release disclaimer before use or redistribution.

@@ -7,14 +7,14 @@
 的输入、弹簧运动与形变核心，将其适配到终末地的原生渲染流程。
 本项目不是 JiggleForge 的官方终末地版本。
 
-[下载与版本](https://github.com/woakato/EndfieldJiggle-EFMI/releases)
+[下载可安装版](https://github.com/woakato/EndfieldJiggle-EFMI/releases/latest)
+ · [源码与历史版本](https://github.com/woakato/EndfieldJiggle-EFMI/releases)
  · [使用说明](docs/USAGE.md)
  · [免责声明](DISCLAIMER.md)
  · [反馈问题](https://github.com/woakato/EndfieldJiggle-EFMI/issues)
 
-> **当前公开发布的是源码版，不是开箱即用的 Mod 安装包。**
-> 源码 ZIP 不含完整游戏接口资源，不能直接放入 `Mods` 目录使用，
-> 也不能仅凭此快照重建完整运行时。下载前请先阅读[使用说明](docs/USAGE.md)。
+> 最新 Release 提供 Windows x64 可安装 Mod ZIP，按下方说明手动放入 EFMI 的
+> `Mods` 目录。另有独立的源码研究版 ZIP；它不是游戏安装包。
 
 ## 项目特点
 
@@ -28,17 +28,19 @@
 材质和场景，不能将“通用”理解为所有角色、所有部位或所有换装均可使用。
 技术验证细节见[开发与来源记录](docs/PROVENANCE.md)。
 
-## 下载与使用
+## 安装与使用
 
 ### 普通玩家
 
-当前 [Release](https://github.com/woakato/EndfieldJiggle-EFMI/releases)
-提供源码 ZIP 和 SHA256 校验文件，没有桌面安装器或完整运行时安装包。
-GitHub 的 `Source code` 下载项同样只是源码。
+从 [最新 Release](https://github.com/woakato/EndfieldJiggle-EFMI/releases/latest)
+下载 `EndfieldJiggleEFMI-v0.2.0-win64.zip`。GitHub 自动提供的 `Source code`
+归档是源代码，不是 Mod 包；不要用它代替 Release 附件。
 
-**如果你希望下载后直接进游戏使用，当前公开版本还不能满足这个需求。**
-不要将源码模板作为完整 Mod 安装，也不要拿绝区零的 ZZMI 资源替代终末地接口资源。
-后续可安装版本应以本仓库实际发布的附件与对应说明为准。
+安装前退出游戏和 XXMI，备份已有的 `EFMI/Mods/EndfieldJiggleEFMI`，
+然后将 ZIP 中的 `Mods/EndfieldJiggleEFMI` 复制到 EFMI 的 `Mods` 目录。
+不要覆盖注入 DLL、全局 `ShaderFixes`、`d3dx.ini` 或其他 Mod。
+完整步骤、快捷键、恢复方法和故障处理见[使用说明](docs/USAGE.md)
+及压缩包内的 `INSTALL-zh-CN.md`。
 
 ### 已具备完整运行时的测试者
 
@@ -52,7 +54,7 @@ GitHub 的 `Source code` 下载项同样只是源码。
 | `Ctrl+Shift+F9` | 显示 / 隐藏诊断状态 |
 | `Ctrl+Shift+F7` | 强制关闭触摸 |
 
-这些按键仅适用于已正确构建和安装的完整版本，不表示源码 ZIP 本身可运行。
+安装版启动后默认关闭触摸；源码研究版本身不能直接运行。
 
 ## 兼容范围
 
@@ -60,14 +62,14 @@ GitHub 的 `Source code` 下载项同样只是源码。
 其他场景、游戏更新后的新着色器、透明材质、多角色重叠及第三方换装
 可能需要额外适配，不能保证响应位置、方向或显示效果。
 
-本公开版本不提供滚轮深度控制、独立部件分组编辑、桌面一键安装、
+本版本不提供滚轮深度控制、独立部件分组编辑、桌面安装器、
 自动更新或第三方 Mod 自动适配。JiggleForge 的相关功能不能直接视为本项目功能。
 
 ## 常见问题
 
 **下载后为什么没有 EXE，也不能拖动？**
 
-当前发布的是源码快照。没有提供完整安装包，不是漏解压。
+确认下载的是 Release 中的 `win64.zip`，而不是 GitHub 的 `Source code` 源码归档。
 
 **是不是每个角色都需要单独导出资源？**
 
@@ -107,6 +109,8 @@ GitHub 的 `Source code` 下载项同样只是源码。
 - 参与实机测试、问题反馈与兼容性验证的使用者。
 
 原创及适用的复用源码采用 [GPL-3.0-only](LICENSE)。
-第三方内容见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)；
-游戏及其他作者的素材不因此改为 GPL 许可。
+可安装包包含与本机所测游戏渲染接口对应的着色器兼容规则及缓存；
+这些集成材料不因此获得 GPL 许可。第三方内容见
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)；游戏及其他作者的素材
+不因此改为 GPL 许可。
 使用、修改或分享前请阅读[免责声明](DISCLAIMER.md)。

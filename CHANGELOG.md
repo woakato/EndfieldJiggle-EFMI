@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added a separate Windows installable Mod release; kept captured compatibility
+  payloads out of the source tree.
+- Added manual installation, backup, recovery and removal instructions.
 - Reworked the Chinese README for public sharing.
 - Added usage, troubleshooting, development and disclaimer documents.
 - Clarified source-release boundaries without changing runtime code.

@@ -10,9 +10,10 @@
 | `tools/` | 适配、签名、ShaderRegex 生成和本地证据校验工具源码 |
 | `tests/` | Windows 原生测试宿主与 CMake 配置 |
 
-不包含生成的完整 `Passes.ini`、游戏原始着色器、游戏派生 DXBC、
-注入 DLL、模型、纹理、本机抓取报告或安装记录。来源与验证范围见
-[PROVENANCE.md](PROVENANCE.md)。
+源代码树不包含生成的完整 `Passes.ini`、游戏原始着色器、完整游戏派生
+DXBC、注入 DLL、模型、纹理、本机抓取报告或安装记录。发布页的 Windows
+安装 ZIP 另包含可用运行所需的兼容 `Passes.ini` 与缓存；它不是 Git 源码树。
+来源与验证范围见[PROVENANCE.md](PROVENANCE.md)。
 
 ## 独立源码检查
 
@@ -43,7 +44,8 @@ HLSL 片段可以使用 Windows SDK 的 FXC 编译，头文件搜索路径需要
 
 `Build-Universal.ps1` 与 `Universal.Common.psm1` 保留完整本地版本的
 证据校验流程，依赖未公开的父构建报告、原生接口适配结果和匹配缓存。
-当前源码快照不能独立生成可安装版本；工具不会下载或自动补齐缺失资源。
+`v0.1.0-source` 源码快照不能独立生成可安装版本；工具不会下载或自动补齐缺失资源。
+当前 Windows Mod ZIP 是从已验证本地安装构建出来的独立发行资产。
 不要为了通过检查而删除证据约束或伪造构建报告。
 
 设计以渲染接口为适配单位。新接口需要验证输入/输出、常量缓冲区范围、

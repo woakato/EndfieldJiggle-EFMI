@@ -2,29 +2,36 @@
 
 ## 先确认下载的是哪一种版本
 
-当前公开的 `v0.1.0-source` 是源码研究版：
-
-- 提供源码 ZIP、许可证及 SHA256 校验文件。
-- 不包含 EXE、注入 DLL、完整接口资源或可用的原生着色器缓存。
-- 不能直接复制进 `Mods` 目录使用，不能独立重建完整安装包。
-
-如果只是希望直接在游戏中体验，请不要将源码模板当作安装包。
-本说明不提供未发布资源的下载地址，也不要求你修改游戏保护机制。
-开发者请阅读[开发说明](DEVELOPMENT.md)。
+Windows 使用者应下载最新 Release 的 `EndfieldJiggleEFMI-v0.2.0-win64.zip`。
+GitHub 自动生成的 `Source code` 归档以及单独标记的 `v0.1.0-source`
+都只是源码，不是安装包。
 
 ## 完整运行时的测试流程
 
-**本节只适用于已经取得并正确构建、安装完整运行时的测试者。**
-不是对当前源码 ZIP 的安装教程。
+**本节的安装步骤适用于 Release 附带的 Windows x64 Mod ZIP。**
 
 准备条件：
 
 - Windows 版《明日方舟：终末地》与自行取得的 XXMI / EFMI 环境。
-- 已按完整版本对应说明完成安装，且拥有改动文件的备份。
+- 已备份已有同名 Mod 文件夹。
 - 游戏与原版模型在未开启触摸时显示正常。
 
-当前公开仓库没有完整安装器。不要照搬 JiggleForge 的 ZZMI 安装步骤、
-资源或快捷键，不要覆盖 `d3d11.dll`、全局 `ShaderFixes` 或其他 Mod。
+本 Release 是手动 Mod 文件包，没有独立安装器。不要照搬 JiggleForge 的
+ZZMI 安装步骤、资源或快捷键，不要覆盖 `d3d11.dll`、全局 `ShaderFixes`
+或其他 Mod。
+
+### 安装步骤
+
+1. 下载并解压 `EndfieldJiggleEFMI-v0.2.0-win64.zip`。
+2. 完全退出游戏和 XXMI 启动器。
+3. 找到自己 EFMI 包中的 `Mods` 文件夹。
+4. 备份已有的 `Mods/EndfieldJiggleEFMI` 文件夹（如果存在）。
+5. 将压缩包内的 `Mods/EndfieldJiggleEFMI` 复制到 EFMI 的 `Mods`。
+6. 确认路径为 `EFMI/Mods/EndfieldJiggleEFMI/EndfieldJiggle.ini`。
+7. 通过 XXMI 启动游戏。触摸默认关闭。
+
+不要覆盖框架 DLL、全局配置、ShaderFixes 或其他 Mod。ZIP 附带的
+`INSTALL-zh-CN.md` 有同一套安装和恢复步骤。
 
 ### 开启与拖动
 
@@ -92,7 +99,9 @@
 使用该版本的受控卸载或恢复流程；仅处理能确认属于它的文件。
 不要使用其他项目或旧版安装器来管理不匹配的版本。
 
-源码版没有安装到游戏，删除源码下载目录即可移除下载内容，不会自动修改游戏。
+源码版没有安装到游戏，删除源码下载目录即可移除源码，不会修改游戏。
+安装版卸载时只移动或删除 `EFMI/Mods/EndfieldJiggleEFMI`；
+如安装前有同名目录，先备份并在卸载后恢复它。
 
 ## 提交反馈
 
