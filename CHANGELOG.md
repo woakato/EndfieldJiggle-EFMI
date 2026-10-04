@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Reworked the Chinese README for public sharing.
+- Added usage, troubleshooting, development and disclaimer documents.
+- Clarified source-release boundaries without changing runtime code.
+
 ## v0.1.0-source - 2026-10-04
 
 - First public source-only research snapshot.
