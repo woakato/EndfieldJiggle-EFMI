@@ -10,6 +10,7 @@
 [下载可安装版](https://github.com/woakato/EndfieldJiggle-EFMI/releases/latest)
  · [源码与历史版本](https://github.com/woakato/EndfieldJiggle-EFMI/releases)
  · [使用说明](docs/USAGE.md)
+ · [可选配置器](docs/CONFIGURATOR.md)
  · [免责声明](DISCLAIMER.md)
  · [反馈问题](https://github.com/woakato/EndfieldJiggle-EFMI/issues)
 
@@ -23,6 +24,7 @@
 - **连续表面响应**：已适配的绘制路径共享形变状态，处理位置及表面方向。
 - **默认关闭交互**：需要手动开启；导航或兼容绘制中断时取消当前交互。
 - **保留原生绘制**：适配原始着色器流程，不随本仓库分发替换注入 DLL。
+- **可选配置器**：可修改当前 Mod 的启动状态、快捷键和共享形变参数，不需后台常驻。
 
 完整本地版本已获得跨角色迁移成功的实机反馈。兼容性仍取决于渲染接口、
 材质和场景，不能将“通用”理解为所有角色、所有部位或所有换装均可使用。
@@ -42,6 +44,12 @@
 完整步骤、快捷键、恢复方法和故障处理见[使用说明](docs/USAGE.md)
 及压缩包内的 `INSTALL-zh-CN.md`。
 
+改键或调整参数时，可另下载同一 Release 的
+`EndfieldJiggleConfigurator-v0.2.0-win64.zip`，将其中的 `Configurator`
+文件夹放进 `EFMI/Mods/EndfieldJiggleEFMI/`。双击其中的配置器，应用的值会
+保存在 Mod 文件夹中；关闭 EXE 后，游戏下次启动仍会使用这些设置。
+基础 Mod 不依赖配置器，也不需要常驻。详见[可选配置器说明](docs/CONFIGURATOR.md)。
+
 ### 已具备完整运行时的测试者
 
 从 XXMI 启动游戏，进入原版干员总览，先确认模型在关闭交互时显示正常，
@@ -54,7 +62,8 @@
 | `Ctrl+Shift+F9` | 显示 / 隐藏诊断状态 |
 | `Ctrl+Shift+F7` | 强制关闭触摸 |
 
-安装版启动后默认关闭触摸；源码研究版本身不能直接运行。
+基础安装包启动后默认关闭触摸；源码研究版本身不能直接运行。配置器应用
+设置后，值会保存在 Mod 文件夹内，不依赖 EXE 常驻。
 
 ## 兼容范围
 
@@ -67,9 +76,10 @@
 
 ## 常见问题
 
-**下载后为什么没有 EXE，也不能拖动？**
+**基础 Mod 压缩包为什么没有 EXE？**
 
-确认下载的是 Release 中的 `win64.zip`，而不是 GitHub 的 `Source code` 源码归档。
+基础 `win64.zip` 是由 EFMI 加载的运行时 Mod，不需要 EXE。改键和调整参数时，
+另下载同一 Release 的可选配置器附件；仅使用默认配置时不必安装。
 
 **是不是每个角色都需要单独导出资源？**
 

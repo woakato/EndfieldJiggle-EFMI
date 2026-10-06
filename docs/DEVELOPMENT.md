@@ -9,10 +9,13 @@
 | `third_party/JiggleForge/` | 复用核心及原始许可证、第三方与品牌说明 |
 | `tools/` | 适配、签名、ShaderRegex 生成和本地证据校验工具源码 |
 | `tests/` | Windows 原生测试宿主与 CMake 配置 |
+| `src/EndfieldJiggle.Configurator*` | 独立的 Mod 参数配置器及受控 INI 更新核心 |
 
 源代码树不包含生成的完整 `Passes.ini`、游戏原始着色器、完整游戏派生
 DXBC、注入 DLL、模型、纹理、本机抓取报告或安装记录。发布页的 Windows
 安装 ZIP 另包含可用运行所需的兼容 `Passes.ini` 与缓存；它不是 Git 源码树。
+可选配置器 Release 附件只含自包含设置 EXE、说明和许可文件，不含游戏运行时、
+着色器、注入器或换装资源。
 来源与验证范围见[PROVENANCE.md](PROVENANCE.md)。
 
 ## 独立源码检查
@@ -35,6 +38,16 @@ cmake --build build/native --config Release
 
 宿主不是游戏注入器，不应放入游戏目录。运行完整加载或协议场景还需要
 自行取得的匹配框架、本地接口资料与测试配置；编译成功不等于这些场景已通过。
+
+构建和测试独立配置器需要 Windows x64 与 .NET 8 SDK：
+
+```powershell
+.\tools\Build-Configurator.ps1
+.\tools\Test-Configurator.ps1 -ModZipPath 'D:\path\to\EndfieldJiggleEFMI-v0.2.0-win64.zip'
+```
+
+测试只把官方 Mod ZIP 解压到 `reports/configurator` 下的隔离目录，验证参数
+持久化、备份与还原；不会写入实际 EFMI 或游戏目录。
 
 HLSL 片段可以使用 Windows SDK 的 FXC 编译，头文件搜索路径需要包含
 `third_party/JiggleForge`。计算、拾取像素和形变片段分别使用

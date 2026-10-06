@@ -1,0 +1,6 @@
+<Project>
+  <ItemGroup>
+    <Compile Remove="$(MSBuildProjectDirectory)\reports\configurator\**\*.cs"/>
+    <Compile Remove="$(MSBuildProjectDirectory)\..\..\reports\configurator\**\*.cs"/>
+  </ItemGroup>
+</Project>

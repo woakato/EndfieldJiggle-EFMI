@@ -20,6 +20,11 @@ EFMI, XXMI, Windows SDK tools and the game are separately obtained dependencies
 under their own licenses. No such binary dependency is distributed here.
 The GPL license does not apply to game assets or material from other Mod authors.
 
+The optional Windows configurator is a self-contained .NET 8 WPF application.
+Its Release archive includes the .NET license and third-party notice files
+corresponding to the SDK used for that build. It contains no game runtime or
+captured game shader payload.
+
 The separate Windows Mod Release contains hash-specific rendering compatibility
 rules and adapted shader payloads produced from local game shader captures.
 Those Release assets are not part of the source tree and are not relicensed by

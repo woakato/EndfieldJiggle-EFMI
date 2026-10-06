@@ -6,6 +6,9 @@ Windows 使用者应下载最新 Release 的 `EndfieldJiggleEFMI-v0.2.0-win64.zi
 GitHub 自动生成的 `Source code` 归档以及单独标记的 `v0.1.0-source`
 都只是源码，不是安装包。
 
+同一 Release 另有可选的 `EndfieldJiggleConfigurator-v0.2.0-win64.zip`。
+它用于改键和调整现有 Mod 的参数，不是游戏运行时，也不会常驻后台。
+
 ## 完整运行时的测试流程
 
 **本节的安装步骤适用于 Release 附带的 Windows x64 Mod ZIP。**
@@ -60,6 +63,26 @@ ZZMI 安装步骤、资源或快捷键，不要覆盖 `d3d11.dll`、全局 `Shad
 若 `F10` 出现错误，先记录完整错误，不要连续重载或随意删除资源。
 实际重载是否成功取决于所用框架、配置和完整版本，不能用源码检查结果代替。
 
+### 可选 EXE 配置器
+
+仅当需要修改启动开关、快捷键或共享形变参数时才需要配置器。
+先安装基础 Mod ZIP，再将配置器 ZIP 内的 `Configurator` 文件夹放入
+`EFMI/Mods/EndfieldJiggleEFMI/`。打开
+`Configurator/EndfieldJiggleConfigurator.exe` 后，程序会自动定位同级 Mod；
+也可手动选择 `EndfieldJiggle.ini` 与 `Passes.ini` 所在目录。
+
+加载配置只读文件。点“应用设置”前必须退出游戏和 XXMI。配置器仅更新
+本 Mod 的 `EndfieldJiggle.ini`、`Passes.ini`，以及存在时的 `Outfits.ini`，
+并将更新前字节及时间戳备份至 `ConfiguratorBackups`。着色器、缓存、
+`d3dx.ini`、注入 DLL、游戏文件和其他 Mod 不会被配置器编辑。
+
+设置保存在 Mod 的 INI 文件中。应用成功后可关闭或删除 `Configurator`
+文件夹；下次从 XXMI 启动时仍会使用保存的值。若只使用基础包默认快捷键，
+无需下载 EXE。
+
+“恢复上次设置”会校验已改文件的哈希和时间戳后才恢复。若其他工具在应用后
+又改过这些文件，恢复会拒绝覆盖；请保留 `ConfiguratorBackups` 中的备份。
+
 ## 常见状态
 
 | 诊断提示 | 含义与处理 |
@@ -102,6 +125,8 @@ ZZMI 安装步骤、资源或快捷键，不要覆盖 `d3d11.dll`、全局 `Shad
 源码版没有安装到游戏，删除源码下载目录即可移除源码，不会修改游戏。
 安装版卸载时只移动或删除 `EFMI/Mods/EndfieldJiggleEFMI`；
 如安装前有同名目录，先备份并在卸载后恢复它。
+仅删除子目录 `Configurator` 不会回滚已保存的运行设置；需要回滚时，先用
+配置器的“恢复上次设置”。
 
 ## 提交反馈
 

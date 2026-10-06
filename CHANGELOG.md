@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added an optional self-contained Windows x64 configurator for installed runtime
+  settings; game startup remains independent of the EXE.
+- Added exact per-file configuration backups, guarded apply/restore and isolated
+  tests against the published v0.2.0 Mod ZIP.
 - Added a separate Windows installable Mod release; kept captured compatibility
   payloads out of the source tree.
 - Added manual installation, backup, recovery and removal instructions.
