@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$DotnetPath,
-    [string]$RuntimeLicenseDirectory
+    [string]$RuntimeLicenseDirectory,
+    [string]$RuntimeZipPath
 )
 
 Set-StrictMode -Version Latest
@@ -41,10 +42,24 @@ $entryPoint = 'Configurator\EndfieldJiggleConfigurator.exe'
 New-Item -ItemType Directory -Path $configurator -Force | Out-Null
 
 $project = Join-Path $root 'src\EndfieldJiggle.Configurator\EndfieldJiggle.Configurator.csproj'
+$resourceArguments = @()
+if ($RuntimeZipPath) {
+    $runtimeZip = (Resolve-Path -LiteralPath $RuntimeZipPath).Path
+    & (Join-Path $PSScriptRoot 'Test-ReleaseRegression.ps1') -ModZipPath $runtimeZip
+    $resources = Join-Path $build 'resources'
+    New-Item -ItemType Directory -Path $resources -Force | Out-Null
+    Copy-Item -LiteralPath $runtimeZip -Destination (Join-Path $resources 'InstallableRuntime.zip')
+    Copy-Item -LiteralPath $runtimeNotices['LICENSE.txt'] -Destination (Join-Path $resources 'DOTNET-LICENSE.txt')
+    Copy-Item -LiteralPath $runtimeNotices['ThirdPartyNotices.txt'] -Destination (Join-Path $resources 'DOTNET-THIRD-PARTY-NOTICES.txt')
+    foreach ($relative in @('LICENSE','DISCLAIMER.md','docs\INSTALL-zh-CN.md')) {
+        Copy-Item -LiteralPath (Join-Path $root $relative) -Destination (Join-Path $resources ([IO.Path]::GetFileName($relative)))
+    }
+    $resourceArguments = @("-p:InstallableResourceDirectory=$resources")
+}
 & $DotnetPath publish $project --configuration Release --runtime win-x64 `
     --self-contained true --nologo -o $publish `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
-    -p:EnableCompressionInSingleFile=true -p:DebugType=None -p:DebugSymbols=false
+    -p:EnableCompressionInSingleFile=true -p:DebugType=None -p:DebugSymbols=false @resourceArguments
 if ($LASTEXITCODE -ne 0) {
     throw 'Configurator publish failed.'
 }
@@ -65,7 +80,7 @@ $exeHash = (Get-FileHash -LiteralPath (Join-Path $package $entryPoint) -Algorith
 [IO.File]::WriteAllText((Join-Path $package 'SHA256SUMS.txt'),
     "$exeHash *$entryPoint`n", [Text.UTF8Encoding]::new($false))
 
-$zip = Join-Path $build 'EndfieldJiggleConfigurator-v0.2.0-win64.zip'
+$zip = Join-Path $build 'EndfieldJiggleConfigurator-v0.2.1-win64.zip'
 [IO.Compression.ZipFile]::CreateFromDirectory(
     $package, $zip, [IO.Compression.CompressionLevel]::Optimal, $false)
 
@@ -86,7 +101,7 @@ if (@($entries | Where-Object {
 
 $report = [ordered]@{
     schema = 1
-    product = 'EndfieldJiggle optional v0.2.0 runtime configurator'
+    product = 'EndfieldJiggle v0.2.1 installer and configurator'
     builtAt = (Get-Date).ToString('o')
     entryPoint = $entryPoint
     executableSha256 = $exeHash
@@ -94,7 +109,8 @@ $report = [ordered]@{
     archiveSha256 = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
     archiveBytes = (Get-Item -LiteralPath $zip).Length
     files = $entries
-    containsGamePayload = $false
+    containsGamePayload = [bool]$RuntimeZipPath
+    embeddedRuntimeArchive = $RuntimeZipPath
     touchesGameOrGlobalFiles = $false
     liveInstallationModified = $false
     inGameVerified = $false

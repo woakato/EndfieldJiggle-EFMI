@@ -501,8 +501,10 @@ public sealed class RuntimeSettingsStore
             [("KeyStop", "key")] = settings.Stop.IniValue,
             [("KeyDiagnostic", "key")] = settings.Diagnostic.IniValue,
             [("KeyDrag", "key")] = settings.Drag.IniValue,
+            [("KeyUIMouse", "key")] = "VK_LBUTTON",
         };
-        return ini.Replace(replacements);
+        return ini.Replace(replacements).Replace(
+            " || $ui_mouse ||", " || ($ui_mouse && !$drag) ||", StringComparison.Ordinal);
     }
 
     private static string PatchInputGate(string text, string fileName)

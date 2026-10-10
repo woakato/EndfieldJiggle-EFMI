@@ -72,8 +72,11 @@ function Get-UniversalReport {
             throw "Native shader evidence changed: $property"
         }
     }
+    $hasBridge = $report.PSObject.Properties['outfitBridgeIncluded'] -and $report.outfitBridgeIncluded -eq $true
+    $expectedFiles = @($parent.files.path)
+    if ($hasBridge) { $expectedFiles += 'Outfits.ini' }
     if ((@($report.files.path | Sort-Object) -join "`n") -cne
-        (@($parent.files.path | Sort-Object) -join "`n")) {
+        (@($expectedFiles | Sort-Object) -join "`n")) {
         throw 'Universal package must retain the accepted owned-file set.'
     }
     foreach ($file in $report.files) {
@@ -83,11 +86,19 @@ function Get-UniversalReport {
             [IO.File]::GetLastWriteTimeUtc($source).Ticks -ne ([DateTimeOffset]$file.lastWriteTimeUtc).UtcDateTime.Ticks) {
             throw "Universal file bytes/FILETIME changed: $($file.path)"
         }
+        if ($file.path -ceq 'Outfits.ini') { continue }
         $previous = @($parent.files | Where-Object path -CEQ $file.path)[0]
         if ($file.path -cnotin @('EndfieldJiggle.ini', 'Passes.ini') -and
             ($file.sha256 -cne $previous.sha256 -or $file.lastWriteTimeUtc -cne $previous.lastWriteTimeUtc)) {
             throw 'Universal eligibility may not change the accepted shader/cache payloads.'
         }
+    }
+    if ($hasBridge) {
+        Import-Module (Join-Path $PSScriptRoot 'OutfitRuntime.Common.psm1')
+        Assert-NativeOutfitBridge `
+            -RuntimeText ([IO.File]::ReadAllText((Join-Path $package 'EndfieldJiggle.ini'))) `
+            -PassesText ([IO.File]::ReadAllText((Join-Path $package 'Passes.ini'))) `
+            -OutfitsText ([IO.File]::ReadAllText((Join-Path $package 'Outfits.ini')))
     }
     return [pscustomobject]@{ Path=$path; Directory=$directory; Package=$package; Report=$report }
 }

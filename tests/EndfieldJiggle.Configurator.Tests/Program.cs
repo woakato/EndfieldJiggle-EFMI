@@ -62,7 +62,9 @@ using (ZipArchive archive = ZipFile.OpenRead(archivePath))
 {
     const string marker = "/Mods/EndfieldJiggleEFMI/";
     ZipArchiveEntry[] files = archive.Entries.Where(entry =>
-        entry.FullName.Contains(marker, StringComparison.Ordinal) && !entry.FullName.EndsWith('/')).ToArray();
+        entry.FullName.Contains(marker, StringComparison.Ordinal) &&
+        !entry.FullName.Contains(marker + "Configurator/", StringComparison.Ordinal) &&
+        !entry.FullName.EndsWith('/')).ToArray();
     Check(files.Any(entry => entry.FullName.EndsWith("/EndfieldJiggle.ini", StringComparison.Ordinal)) &&
           files.Any(entry => entry.FullName.EndsWith("/Passes.ini", StringComparison.Ordinal)),
         "Official package contains both configurable INIs");
@@ -104,15 +106,16 @@ string randomShader = packageFiles.Keys.First(path => path.StartsWith(
 
 RuntimeSettingsStore store = new(runtime);
 RuntimeSettingsSnapshot original = store.Read();
+bool includesOutfits = packageFiles.ContainsKey("Outfits.ini");
 Check(!original.Settings.DefaultEnabled &&
       original.Settings.Toggle == new KeyBinding("VK_F8", Ctrl: true, Shift: true) &&
       original.Settings.Stop == new KeyBinding("VK_F7", Ctrl: true, Shift: true) &&
       original.Settings.Diagnostic == new KeyBinding("VK_F9", Ctrl: true, Shift: true) &&
       original.Settings.Drag == new KeyBinding("VK_LBUTTON", Shift: true),
-    "Reader reflects the published v0.2.0 defaults");
-Check(packageFiles.Count == 13 &&
+    "Reader reflects the documented default-off settings");
+Check(packageFiles.Count == (includesOutfits ? 14 : 13) &&
       original.Settings.Physics == new PhysicsSettings(0.12m, 0.04m, 0.75m),
-    "The configurator recognizes the official 13-file install payload");
+    "The configurator recognizes both native-only and outfit-enabled install payloads");
 
 TouchSettings configured = new(
     true,
@@ -122,9 +125,14 @@ TouchSettings configured = new(
     new KeyBinding("VK_XBUTTON2", Ctrl: true),
     new PhysicsSettings(0.23m, 0.071m, 1.7m));
 RuntimeApplyResult applied = store.Apply(configured, original.Fingerprint, requireStopped: false);
+string[] expectedChangedFiles = packageFiles.Keys.Where(name =>
+    name == "EndfieldJiggle.ini" ||
+    name is "Passes.ini" or "Outfits.ini" &&
+    Encoding.UTF8.GetString(packageFiles[name].Bytes).Contains("&& !$ui_mouse &&", StringComparison.Ordinal))
+    .Order().ToArray();
 Check(applied.Changed && applied.ChangedFiles.Order().SequenceEqual(
-        new[] { "EndfieldJiggle.ini", "Passes.ini" }.Order(), StringComparer.OrdinalIgnoreCase),
-    "Apply updates only the two owned v0.2.0 configuration files");
+        expectedChangedFiles, StringComparer.OrdinalIgnoreCase),
+    "Apply updates only owned configuration files whose settings actually change");
 Check(store.Read().Settings == configured,
     "Startup, bindings and physics persist in the Mod folder after the app closes");
 Check(!File.Exists(Path.Combine(runtime, "EndfieldJiggle")) &&
@@ -132,8 +140,7 @@ Check(!File.Exists(Path.Combine(runtime, "EndfieldJiggle")) &&
       !Directory.EnumerateFiles(runtime, ".*.tmp", SearchOption.TopDirectoryOnly).Any(),
     "Atomic updates do not leave sibling files or temporary files in the Mod folder");
 Check(applied.BackupDirectory is not null &&
-      File.Exists(Path.Combine(applied.BackupDirectory, "EndfieldJiggle.ini.bak")) &&
-      File.Exists(Path.Combine(applied.BackupDirectory, "Passes.ini.bak")),
+      expectedChangedFiles.All(name => File.Exists(Path.Combine(applied.BackupDirectory, name + ".bak"))),
     "Apply creates a per-file backup before updating runtime INIs");
 
 string runtimeText = File.ReadAllText(Path.Combine(runtime, "EndfieldJiggle.ini"));
@@ -148,9 +155,20 @@ Check(runtimeText.Contains("global $enabled = 1", StringComparison.Ordinal) &&
 Check(passesText.Contains("&& !($ui_mouse && !$drag) &&", StringComparison.Ordinal) &&
       !passesText.Contains("&& !$ui_mouse &&", StringComparison.Ordinal),
     "Drag input remains available without bypassing the explicit drag key");
+Check(runtimeText.Contains(" || ($ui_mouse && !$drag) ||", StringComparison.Ordinal) &&
+      !runtimeText.Contains(" || $ui_mouse ||", StringComparison.Ordinal) &&
+      runtimeText.Contains("[KeyUIMouse]\nkey = VK_LBUTTON", StringComparison.Ordinal),
+    "Mouse navigation and session liveness agree with custom drag bindings");
+if (includesOutfits)
+{
+    Check(runtimeText.Contains("if $outfit_active\n    drawindexedinstanced = $outfit_count", StringComparison.Ordinal) &&
+          passesText.Split("if !$outfit_seen &&", StringSplitOptions.None).Length == 13 &&
+          File.ReadAllBytes(Path.Combine(runtime, "Outfits.ini")).SequenceEqual(packageFiles["Outfits.ini"].Bytes),
+        "Configuring the exported release preserves outfit picking, exclusions and callbacks");
+}
 foreach ((string relative, (byte[] bytes, DateTime time)) in packageFiles)
 {
-    if (relative is "EndfieldJiggle.ini" or "Passes.ini")
+    if (expectedChangedFiles.Contains(relative, StringComparer.OrdinalIgnoreCase))
         continue;
     string path = Path.Combine(runtime, SafeRelative(relative));
     Check(Hex(File.ReadAllBytes(path)) == Hex(bytes) &&

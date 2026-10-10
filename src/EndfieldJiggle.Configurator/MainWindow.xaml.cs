@@ -1,4 +1,5 @@
 using System.IO;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -12,6 +13,8 @@ public partial class MainWindow : Window
     private RuntimeSettingsStore? store;
     private RuntimeSettingsSnapshot? snapshot;
     private bool loading;
+    private InstallablePackage? package;
+    private InstallationPreview? installation;
 
     public MainWindow()
     {
@@ -19,16 +22,38 @@ public partial class MainWindow : Window
         ToggleKeyCombo.ItemsSource = StopKeyCombo.ItemsSource =
             DiagnosticKeyCombo.ItemsSource = TouchSettings.KeyboardOptions;
         DragKeyCombo.ItemsSource = TouchSettings.DragOptions;
+        foreach (ComboBox combo in new[] { ToggleKeyCombo, StopKeyCombo, DiagnosticKeyCombo, DragKeyCombo })
+            combo.DisplayMemberPath = nameof(KeyBinding.DisplayName);
         RadiusSlider.ValueChanged += Physics_ValueChanged;
         MaxOffsetSlider.ValueChanged += Physics_ValueChanged;
         DragScaleSlider.ValueChanged += Physics_ValueChanged;
         Loaded += (_, _) =>
         {
+            try
+            {
+                package = InstallablePackage.FromAssembly(Assembly.GetExecutingAssembly(),
+                    Environment.ProcessPath ?? throw new IOException("无法定位当前 EXE。"));
+            }
+            catch (Exception error) { InstallResultText.Text = error.Message; }
             string? runtime = RuntimeSettingsStore.FindRuntimeDirectory(AppContext.BaseDirectory);
             if (runtime is not null)
-                LoadRuntime(runtime);
+            {
+                try
+                {
+                    string efmi = InstallablePackage.ResolveEfmiDirectory(runtime);
+                    LoadRuntime(runtime);
+                    SelectEfmi(efmi);
+                }
+                catch (DirectoryNotFoundException)
+                {
+                    SetStatus(package?.Available == true ? "完整安装包已就绪。" : "尚未读取已安装 Mod。", false);
+                    MainTabs.SelectedItem = InstallationTab;
+                }
+            }
             else
-                SetStatus("请选择已安装的 Mods/EndfieldJiggleEFMI 文件夹。", false);
+                SetStatus(package?.Available == true ? "完整安装包已就绪。" : "尚未读取已安装 Mod。", false);
+            if (Environment.GetCommandLineArgs().Contains("--install", StringComparer.Ordinal))
+                MainTabs.SelectedItem = InstallationTab;
         };
     }
 
@@ -41,7 +66,14 @@ public partial class MainWindow : Window
             InitialDirectory = store?.Root,
         };
         if (dialog.ShowDialog(this) == true)
-            LoadRuntime(dialog.FolderName);
+        {
+            try
+            {
+                SelectEfmi(InstallablePackage.ResolveEfmiDirectory(dialog.FolderName));
+                LoadRuntime(dialog.FolderName);
+            }
+            catch (Exception error) { SetStatus(error.Message, false); }
+        }
     }
 
     private void Window_DragOver(object sender, DragEventArgs e) =>
@@ -55,10 +87,15 @@ public partial class MainWindow : Window
         string? runtime = RuntimeSettingsStore.FindRuntimeDirectory(candidate);
         if (runtime is null)
         {
-            SetStatus("拖入的路径中未找到已安装的 EndfieldJiggle.ini 和 Passes.ini。", false);
+            SelectOutfit(candidate);
             return;
         }
-        LoadRuntime(runtime);
+        try
+        {
+            SelectEfmi(InstallablePackage.ResolveEfmiDirectory(runtime));
+            LoadRuntime(runtime);
+        }
+        catch (Exception error) { SetStatus(error.Message, false); }
     }
 
     private void LoadRuntime(string directory)
@@ -71,10 +108,13 @@ public partial class MainWindow : Window
             snapshot = current;
             SetControls(current.Settings);
             RuntimePathText.Text = selected.Root;
-            SetStatus("已读取兼容运行时。当前配置已写入 Mod 文件，关闭配置器后仍会生效。", true);
+            SetStatus("已读取运行时配置。", true);
             FooterText.Text = "已加载当前配置。";
             RestoreButton.IsEnabled = selected.HasRestorableBackup;
             ApplyButton.IsEnabled = true;
+            MainTabs.SelectedItem = TouchTab;
+            if (!string.IsNullOrEmpty(OutfitPathBox.Text))
+                SelectOutfit(OutfitPathBox.Text);
         }
         catch (Exception error)
         {
@@ -83,6 +123,95 @@ public partial class MainWindow : Window
             ApplyButton.IsEnabled = RestoreButton.IsEnabled = false;
             SetStatus(error.Message, false);
         }
+    }
+
+    private void ChooseEfmi_Click(object sender, RoutedEventArgs e)
+    {
+        OpenFolderDialog dialog = new()
+        {
+            Title = "选择 EFMI 安装目录", Multiselect = false,
+            InitialDirectory = string.IsNullOrEmpty(EfmiPathBox.Text) ? null : EfmiPathBox.Text,
+        };
+        if (dialog.ShowDialog(this) != true) return;
+        try { SelectEfmi(dialog.FolderName); }
+        catch (Exception error) { SetStatus(error.Message, false); }
+    }
+
+    private void SelectEfmi(string selected)
+    {
+        string efmi = InstallablePackage.ResolveEfmiDirectory(selected);
+        EfmiPathBox.Text = efmi;
+        installation = null;
+        InstallButton.IsEnabled = false;
+        if (package?.Available == true)
+        {
+            installation = package.Preview(efmi);
+            InstallPreviewText.Text = $"{(installation.IsUpgrade ? "升级已安装版本" : "新安装")} · {installation.FileCount} 个文件\n" +
+                installation.RuntimeDirectory;
+            InstallButton.IsEnabled = true;
+        }
+        else InstallPreviewText.Text = "此配置器未内置安装资源。";
+        InstallRestoreButton.IsEnabled = InstallablePackage.HasRestorableInstallation(
+            Path.Combine(efmi, "Mods", "EndfieldJiggleEFMI"));
+        string currentRuntime = Path.Combine(efmi, "Mods", "EndfieldJiggleEFMI");
+        if (File.Exists(Path.Combine(currentRuntime, "EndfieldJiggle.ini")) &&
+            File.Exists(Path.Combine(currentRuntime, "Passes.ini")) &&
+            !string.Equals(store?.Root, currentRuntime, StringComparison.OrdinalIgnoreCase))
+        {
+            object activeTab = MainTabs.SelectedItem;
+            LoadRuntime(currentRuntime);
+            MainTabs.SelectedItem = activeTab;
+        }
+        else if (!Directory.Exists(currentRuntime))
+        {
+            store = null;
+            snapshot = null;
+            ApplyButton.IsEnabled = RestoreButton.IsEnabled = false;
+        }
+    }
+
+    private async void Install_Click(object sender, RoutedEventArgs e)
+    {
+        if (package is null || installation is null) return;
+        InstallationPreview preview = installation;
+        if (MessageBox.Show(this,
+                $"安装到：\n{preview.RuntimeDirectory}\n\n只安装 EndfieldJiggle 自有文件，备份旧文件并保留可读取的参数。" +
+                "\n不修改游戏、注入器或其他 Mod。请先退出游戏和 XXMI。",
+                "安装 / 升级", MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK) return;
+        IsEnabled = false;
+        try
+        {
+            InstallationResult result = await Task.Run(() => package.Install(preview));
+            InstallResultText.Text = $"安装完成。\n备份：{result.BackupDirectory}\n" +
+                (result.SettingsPreserved ? "已保留原来的按键和强度。" : "已使用本版默认配置。");
+            LoadRuntime(result.RuntimeDirectory);
+            SelectEfmi(preview.EfmiDirectory);
+            SetStatus("0.2.1 已安装。", true);
+        }
+        catch (Exception error) { SetStatus(error.Message, false); }
+        finally { IsEnabled = true; }
+    }
+
+    private async void InstallRestore_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(EfmiPathBox.Text)) return;
+        string runtime = Path.Combine(EfmiPathBox.Text, "Mods", "EndfieldJiggleEFMI");
+        if (MessageBox.Show(this, $"恢复安装前版本：\n{runtime}\n\n请退出游戏和 XXMI。\n" +
+                "安装后有修改的文件不会被强行覆盖。", "恢复安装",
+                MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) return;
+        IsEnabled = false;
+        try
+        {
+            string backup = await Task.Run(() => InstallablePackage.RestoreInstallation(runtime));
+            InstallResultText.Text = "已恢复安装前文件。备份：" + backup;
+            store = null;
+            snapshot = null;
+            ApplyButton.IsEnabled = RestoreButton.IsEnabled = false;
+            SelectEfmi(EfmiPathBox.Text);
+            SetStatus("已恢复安装前版本。", true);
+        }
+        catch (Exception error) { SetStatus(error.Message, false); }
+        finally { IsEnabled = true; }
     }
 
     private void SetControls(TouchSettings settings)

@@ -23,7 +23,7 @@ if ($ini -match '(?i)TextureOverrideCaptured|\$active_character|\$mesh_character
     throw 'Unexpected per-operator eligibility in universal template.'
 }
 $checks += 2
-foreach ($name in @('NativeFamilyAdapter','NativePickAdapter','ShaderPatch','ShaderProbe.Common','TouchAdapter.Common','LoaderDiagnostics')) {
+foreach ($name in @('NativeFamilyAdapter','NativePickAdapter','ShaderPatch','ShaderProbe.Common','TouchAdapter.Common','LoaderDiagnostics','OutfitRuntime.Common','QaqmState.Common')) {
     Import-Module (Join-Path $PSScriptRoot "$name.psm1") -Force -DisableNameChecking
     $checks++
 }

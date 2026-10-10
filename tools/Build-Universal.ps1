@@ -3,6 +3,7 @@ param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path -LiteralPath "$PSScriptRoot\..").Path
+Import-Module (Join-Path $PSScriptRoot 'OutfitRuntime.Common.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Universal.Common.psm1') -Force
 $parentPath = Join-Path $root 'reports\characters-build\build-report.json'
 $accepted = '8A60B7D34B59ECE20716377ABE20F25EB506CF92AF722E4B7B2204DAD29AC0D2'
@@ -74,8 +75,12 @@ foreach ($section in $baseRuntime) {
     }
 }
 $encoding = [Text.UTF8Encoding]::new($false)
-[IO.File]::WriteAllText((Join-Path $package 'Passes.ini'), ($passText -join "`n`n"), $encoding)
-[IO.File]::WriteAllText((Join-Path $package 'EndfieldJiggle.ini'), ($runtime -join "`n`n"), $encoding)
+$bridge = Enable-NativeOutfitBridge -RuntimeText ($runtime -join "`n`n") `
+    -PassesText ($passText -join "`n`n") `
+    -OutfitTemplate ([IO.File]::ReadAllText((Join-Path $root 'runtime\Outfits.ini')))
+[IO.File]::WriteAllText((Join-Path $package 'Passes.ini'), $bridge.PassesText, $encoding)
+[IO.File]::WriteAllText((Join-Path $package 'EndfieldJiggle.ini'), $bridge.RuntimeText, $encoding)
+[IO.File]::WriteAllText((Join-Path $package 'Outfits.ini'), $bridge.OutfitsText, $encoding)
 $report = [ordered]@{
     schema=1; created=(Get-Date).ToString('o')
     buildKind='universal-native-families'; packageDirectory=$package
@@ -88,6 +93,7 @@ $report = [ordered]@{
     requiresCharacterProfiles=$false; usesMeshHashWhitelist=$false; usesExactIndexCountWhitelist=$false
     waitsForPerCharacterPassSet=$false; nativePipelineWarmupFrames=2
     globalPhysicalField=$true; defaultEnabled=$false; liveInstallationModified=$false; inGameVerified=$false
+    outfitBridgeIncluded=$true
     upstreamMechanism='Shared native color-pipeline picking and one default world-space field, analogous to JiggleForge OriginalParts.'
     limits=@(
         'Only the 12 reviewed native shader interfaces qualify. New interfaces require interface adaptation, not individual character solving.'

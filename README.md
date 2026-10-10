@@ -11,11 +11,16 @@
  · [源码与历史版本](https://github.com/woakato/EndfieldJiggle-EFMI/releases)
  · [使用说明](docs/USAGE.md)
  · [可选配置器](docs/CONFIGURATOR.md)
+ · [换装兼容](docs/OUTFIT-COMPATIBILITY.md)
  · [免责声明](DISCLAIMER.md)
  · [反馈问题](https://github.com/woakato/EndfieldJiggle-EFMI/issues)
 
-> 最新 Release 提供 Windows x64 可安装 Mod ZIP，按下方说明手动放入 EFMI 的
-> `Mods` 目录。另有独立的源码研究版 ZIP；它不是游戏安装包。
+> 完整 Windows x64 包包含运行时和安装配置程序，可选择 EFMI 目录安装，
+> 也可手动放入 `Mods`。源码研究版 ZIP 不是游戏安装包。
+
+v0.2.1 修复 v0.2.0 发布包遗漏的 EJTouch 换装桥接，并修正配置器自定义拖动键
+的会话判断。此修复包的隔离测试不代替游戏实机复验。
+完整包新增原目录换装适配、可回退安装和按实际依赖检查的 QAQM 状态恢复。
 
 ## 项目特点
 
@@ -24,7 +29,7 @@
 - **连续表面响应**：已适配的绘制路径共享形变状态，处理位置及表面方向。
 - **默认关闭交互**：需要手动开启；导航或兼容绘制中断时取消当前交互。
 - **保留原生绘制**：适配原始着色器流程，不随本仓库分发替换注入 DLL。
-- **可选配置器**：可修改当前 Mod 的启动状态、快捷键和共享形变参数，不需后台常驻。
+- **可选程序**：安装、修改键位和强度、原目录换装适配，不需后台常驻。
 
 完整本地版本已获得跨角色迁移成功的实机反馈。兼容性仍取决于渲染接口、
 材质和场景，不能将“通用”理解为所有角色、所有部位或所有换装均可使用。
@@ -35,17 +40,20 @@
 ### 普通玩家
 
 从 [最新 Release](https://github.com/woakato/EndfieldJiggle-EFMI/releases/latest)
-下载 `EndfieldJiggleEFMI-v0.2.0-win64.zip`。GitHub 自动提供的 `Source code`
+下载 `EndfieldJiggleEFMI-v0.2.1-with-configurator-win64.zip`（含可选配置器），
+或 `EndfieldJiggleEFMI-v0.2.1-win64.zip`（仅 Mod）。GitHub 自动提供的 `Source code`
 归档是源代码，不是 Mod 包；不要用它代替 Release 附件。
 
-安装前退出游戏和 XXMI，备份已有的 `EFMI/Mods/EndfieldJiggleEFMI`，
-然后将 ZIP 中的 `Mods/EndfieldJiggleEFMI` 复制到 EFMI 的 `Mods` 目录。
+安装前退出游戏和 XXMI。解压完整 ZIP，双击 `Install.cmd`，选择 EFMI 目录，
+点击“安装 / 升级”。程序备份自有文件，保留可读取的键位和强度。
+也可以将 ZIP 中的 `Mods/EndfieldJiggleEFMI` 复制到 EFMI 的 `Mods` 目录；
+手动升级时先将旧目录备份到 `Mods` 之外，不要混合版本。
 不要覆盖注入 DLL、全局 `ShaderFixes`、`d3dx.ini` 或其他 Mod。
 完整步骤、快捷键、恢复方法和故障处理见[使用说明](docs/USAGE.md)
 及压缩包内的 `INSTALL-zh-CN.md`。
 
-改键或调整参数时，可另下载同一 Release 的
-`EndfieldJiggleConfigurator-v0.2.0-win64.zip`，将其中的 `Configurator`
+完整包已包含 EXE。改键或调整参数时，也可另下载
+`EndfieldJiggleConfigurator-v0.2.1-win64.zip`，将其中的 `Configurator`
 文件夹放进 `EFMI/Mods/EndfieldJiggleEFMI/`。双击其中的配置器，应用的值会
 保存在 Mod 文件夹中；关闭 EXE 后，游戏下次启动仍会使用这些设置。
 基础 Mod 不依赖配置器，也不需要常驻。详见[可选配置器说明](docs/CONFIGURATOR.md)。
@@ -70,16 +78,21 @@
 当前适配重点是 **Windows 版游戏的原版干员总览**。
 其他场景、游戏更新后的新着色器、透明材质、多角色重叠及第三方换装
 可能需要额外适配，不能保证响应位置、方向或显示效果。
+已有 EJTouch 适配包可调用本版恢复的换装桥接。普通换装仍需要绘制包装器。
+QAQM 状态文件缺失与桥接缺失是独立问题，详见[换装兼容说明](docs/OUTFIT-COMPATIBILITY.md)。
 
-本版本不提供滚轮深度控制、独立部件分组编辑、桌面安装器、
-自动更新或第三方 Mod 自动适配。JiggleForge 的相关功能不能直接视为本项目功能。
+程序的“换装适配”页可分析并在原目录包装支持的索引绘制，支持撤销。
+不复制换装模型，不新建第二份换装 Mod；原目录 INI 会修改并保存备份。
+适配完成后可在游戏内按 F10 重载，具体限制见[换装兼容说明](docs/OUTFIT-COMPATIBILITY.md)。
+自定义顶点着色器、动态绘制范围等不受支持，程序会报告，不能承诺任意换装兼容。
+本版本不提供滚轮深度控制、独立部件分组编辑或自动更新。
 
 ## 常见问题
 
 **基础 Mod 压缩包为什么没有 EXE？**
 
 基础 `win64.zip` 是由 EFMI 加载的运行时 Mod，不需要 EXE。改键和调整参数时，
-另下载同一 Release 的可选配置器附件；仅使用默认配置时不必安装。
+使用完整包中的配置器或单独的可选配置器附件；仅使用默认配置时不必打开它。
 
 **是不是每个角色都需要单独导出资源？**
 
@@ -100,7 +113,7 @@
 
 ## 分享与反馈
 
-欢迎分享**本仓库或 Release 的原始链接**，请同时说明当前是源码研究版，
+欢迎分享**本仓库或 Release 的原始链接**，请说明所分享的是安装包还是源码，
 不要以“全角色通用安装包”“保证不封号”或“官方插件”等描述传播。
 
 转载或发布修改版时，请遵守 GPL-3.0-only，保留适用的许可证、版权和来源说明，

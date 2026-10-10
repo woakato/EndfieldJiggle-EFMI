@@ -9,13 +9,13 @@
 | `third_party/JiggleForge/` | 复用核心及原始许可证、第三方与品牌说明 |
 | `tools/` | 适配、签名、ShaderRegex 生成和本地证据校验工具源码 |
 | `tests/` | Windows 原生测试宿主与 CMake 配置 |
-| `src/EndfieldJiggle.Configurator*` | 独立的 Mod 参数配置器及受控 INI 更新核心 |
+| `src/EndfieldJiggle.Configurator*` | 安装配置器、原目录换装适配和 QAQM 检查/恢复 |
 
 源代码树不包含生成的完整 `Passes.ini`、游戏原始着色器、完整游戏派生
 DXBC、注入 DLL、模型、纹理、本机抓取报告或安装记录。发布页的 Windows
 安装 ZIP 另包含可用运行所需的兼容 `Passes.ini` 与缓存；它不是 Git 源码树。
-可选配置器 Release 附件只含自包含设置 EXE、说明和许可文件，不含游戏运行时、
-着色器、注入器或换装资源。
+完整构建的配置器 EXE 可嵌入已审核的运行时 ZIP，但不包含替换注入器或第三方换装资源。
+未传 `-RuntimeZipPath` 的开发构建仍是无内置运行时的配置器。
 来源与验证范围见[PROVENANCE.md](PROVENANCE.md)。
 
 ## 独立源码检查
@@ -43,7 +43,7 @@ cmake --build build/native --config Release
 
 ```powershell
 .\tools\Build-Configurator.ps1
-.\tools\Test-Configurator.ps1 -ModZipPath 'D:\path\to\EndfieldJiggleEFMI-v0.2.0-win64.zip'
+.\tools\Test-Configurator.ps1 -ModZipPath 'D:\path\to\EndfieldJiggleEFMI-v0.2.1-win64.zip'
 ```
 
 测试只把官方 Mod ZIP 解压到 `reports/configurator` 下的隔离目录，验证参数
@@ -60,6 +60,21 @@ HLSL 片段可以使用 Windows SDK 的 FXC 编译，头文件搜索路径需要
 `v0.1.0-source` 源码快照不能独立生成可安装版本；工具不会下载或自动补齐缺失资源。
 当前 Windows Mod ZIP 是从已验证本地安装构建出来的独立发行资产。
 不要为了通过检查而删除证据约束或伪造构建报告。
+
+v0.2.1 可从 SHA-256 固定的 v0.2.0 安装 ZIP 重建桥接控制层，保留全部
+原有兼容着色器字节，不依赖从游戏重新导出：
+
+```powershell
+.\tools\Build-Installable.ps1 -BaseModZipPath 'D:\path\to\EndfieldJiggleEFMI-v0.2.0-win64.zip'
+.\tools\Test-ReleaseRegression.ps1 -ModZipPath 'D:\path\to\EndfieldJiggleEFMI-v0.2.1-win64.zip'
+.\tools\Test-QaqmRecovery.ps1
+```
+
+`Build-Installable.ps1 -ConfiguratorZipPath ...` 可同时生成完整包。
+`Build-Complete.ps1 -BaseModZipPath ... -OutputDirectory ...` 依次构建内置安装资源的 EXE
+和完整包。新 C# 测试项目覆盖安装、换装和状态恢复；输出保存在 `reports`。
+QAQM 恢复导出器的 `-EfmiPath` 会跟踪实际明确 include 的状态宿主，
+而非仅检查缓存文件是否存在；它不会改写 EFMI 的 include 列表。
 
 设计以渲染接口为适配单位。新接口需要验证输入/输出、常量缓冲区范围、
 当前与上一帧投影及拾取路径，而不是把新角色的网格加入白名单。

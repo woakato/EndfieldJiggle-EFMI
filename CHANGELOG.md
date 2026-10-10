@@ -1,6 +1,22 @@
 # Changelog
 
-## Unreleased
+## v0.2.1 - 2026-10-10
+
+- Restored the outfit bridge omitted from the v0.2.0 distribution: explicit
+  replacement-range picking, native-pass exclusions and twelve shader callbacks.
+- Fixed mouse/session cancellation after changing drag bindings.
+- Added reproducible package generation and release regression negative controls.
+- Added an optional combined Mod/configurator archive, with persistent INI settings.
+- Added a separate, evidence-based QAQM missing-state recovery exporter.
+- Embedded the reviewed runtime in the optional EXE; added one-click installation,
+  settings-preserving upgrades, owned-file rollback and installation recovery.
+- Added reversible in-place indexed outfit adaptation without duplicate outfit Mods.
+- Added general QAQM state inspection/recovery using actual include dependencies,
+  not fixed character or Bridge IDs.
+- Added an explicit F10 reload workflow for supported outfit INI changes.
+- In-game outfit UI and F10 model-disappearance verification remains pending.
+
+## v0.2.0
 
 - Added an optional self-contained Windows x64 configurator for installed runtime
   settings; game startup remains independent of the EXE.
