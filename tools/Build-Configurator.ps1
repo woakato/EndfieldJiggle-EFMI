@@ -80,7 +80,7 @@ $exeHash = (Get-FileHash -LiteralPath (Join-Path $package $entryPoint) -Algorith
 [IO.File]::WriteAllText((Join-Path $package 'SHA256SUMS.txt'),
     "$exeHash *$entryPoint`n", [Text.UTF8Encoding]::new($false))
 
-$zip = Join-Path $build 'EndfieldJiggleConfigurator-v0.2.1-win64.zip'
+$zip = Join-Path $build 'EndfieldJiggleConfigurator-v0.2.2-win64.zip'
 [IO.Compression.ZipFile]::CreateFromDirectory(
     $package, $zip, [IO.Compression.CompressionLevel]::Optimal, $false)
 
@@ -101,7 +101,7 @@ if (@($entries | Where-Object {
 
 $report = [ordered]@{
     schema = 1
-    product = 'EndfieldJiggle v0.2.1 installer and configurator'
+    product = 'EndfieldJiggle v0.2.2 portable installer and configurator'
     builtAt = (Get-Date).ToString('o')
     entryPoint = $entryPoint
     executableSha256 = $exeHash

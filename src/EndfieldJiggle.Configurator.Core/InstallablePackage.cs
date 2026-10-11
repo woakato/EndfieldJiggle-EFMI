@@ -51,7 +51,7 @@ public sealed class InstallablePackage
         EnsureUnlinked(efmi);
         string runtime = Path.Combine(efmi, "Mods", "EndfieldJiggleEFMI");
         EnsureUnlinked(runtime);
-        bool upgrade = Directory.Exists(runtime);
+        bool upgrade = Directory.Exists(runtime) && Directory.EnumerateFileSystemEntries(runtime).Any();
         if (upgrade)
         {
             _ = new RuntimeSettingsStore(runtime).Read();
@@ -139,7 +139,7 @@ public sealed class InstallablePackage
                 foreach (string name in files.Keys.Where(name => name.EndsWith(".ini", StringComparison.Ordinal)))
                     written[name] = Hash(File.ReadAllBytes(Inside(current.RuntimeDirectory, name)));
             }
-            InstallationReceipt receipt = new(1, "v0.2.1", current.RuntimeDirectory, session,
+            InstallationReceipt receipt = new(1, "v0.2.2", current.RuntimeDirectory, session,
                 files.Keys.Select(name => new InstalledFile(name,
                     Hash(File.ReadAllBytes(Inside(current.RuntimeDirectory, name))))).ToArray());
             byte[] receiptBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(receipt, JsonOptions));
@@ -183,7 +183,7 @@ public sealed class InstallablePackage
     public static string ResolveEfmiDirectory(string selectedDirectory)
     {
         string current = Path.GetFullPath(selectedDirectory);
-        for (int depth = 0; depth < 5; depth++)
+        for (int depth = 0; depth < 10; depth++)
         {
             EnsureUnlinked(current);
             if (File.Exists(Path.Combine(current, "d3dx.ini")) &&

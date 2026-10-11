@@ -11,7 +11,7 @@ namespace EndfieldJiggle.Configurator;
 
 public partial class MainWindow
 {
-    internal void RunIsolatedSmoke(string outputDirectory)
+    internal async Task RunIsolatedSmokeAsync(string outputDirectory)
     {
         string output = Path.GetFullPath(outputDirectory);
         if (Directory.Exists(output) && Directory.EnumerateFileSystemEntries(output).Any())
@@ -23,12 +23,12 @@ public partial class MainWindow
         string efmi = Path.Combine(output, "FixtureEFMI");
         Directory.CreateDirectory(Path.Combine(efmi, "Mods"));
         File.WriteAllText(Path.Combine(efmi, "d3dx.ini"),
-            "[Include]\ninclude_recursive = Mods\nexclude_recursive = DISABLED*\n");
+            "[Include]\ninclude_recursive = Mods\nexclude_recursive = DISABLED*\n" +
+            "[Hunting]\nreload_config = no_modifiers VK_F10\n");
         File.WriteAllText(Path.Combine(efmi, "d3d11.dll"), "isolated-fixture-not-a-loader");
         InstallationResult result = package.Install(package.Preview(efmi), requireStopped: false);
         int installedFiles = package.Preview(efmi).FileCount;
-        LoadRuntime(result.RuntimeDirectory);
-        SelectEfmi(efmi);
+        await OpenWorkspaceAsync(efmi);
         string outfit = Path.Combine(efmi, "Mods", "SampleOutfit");
         Directory.CreateDirectory(outfit);
         string source = Path.Combine(outfit, "body.ini");
@@ -39,26 +39,40 @@ public partial class MainWindow
             "[TextureOverrideBody]\nhash = 01234567\ndrawindexed = 12, 3, 0\n");
         File.WriteAllText(source + ".qaqm-persistbak",
             "namespace = Example\n[Constants]\nglobal persist $variant = 1\n");
-        SelectOutfit(outfit);
-        QaqmRecoveryPlan plan = InspectState();
+        await SelectOutfitAsync(outfit);
+        QaqmRecoveryPlan plan = await InspectStateAsync();
         if (!plan.CanApply || stateStore is null) throw new InvalidDataException("Sample state recovery not available.");
         stateStore.Apply(plan.Fingerprint, requireStopped: false);
-        QaqmRecoveryPlan recovered = InspectState();
+        QaqmRecoveryPlan recovered = await InspectStateAsync();
         if (recovered.Issues.Count != 0 || recovered.MissingHosts.Count != 0)
             throw new InvalidDataException("Sample recovery not recognized.");
-        InspectOutfit();
+        await InspectOutfitAsync();
         if (outfitStore is null || outfitInspection?.SupportedDraws.Count != 1)
             throw new InvalidDataException("Sample native indexed draw not recognized.");
         outfitStore.Apply(outfitInspection.Fingerprint, requireStopped: false);
         if (!outfitStore.Inspect().AlreadyAdapted) throw new InvalidDataException("Adaptation did not persist.");
         outfitStore.Restore(requireStopped: false);
-        InspectOutfit();
+        await InspectOutfitAsync();
+        TouchSettings originalSettings = store!.Read().Settings;
+        TouchSettings editedSettings = originalSettings with { Drag = new("VK_LBUTTON") };
+        SetControls(editedSettings);
+        if (ReadControls() != editedSettings) throw new InvalidDataException("UI binding roundtrip failed.");
+        ValidateHotSettingsTarget();
+        store.Apply(editedSettings, store.Read().Fingerprint, requireStopped: false);
+        if (store.Read().Settings != editedSettings) throw new InvalidDataException("Hot settings save failed.");
+        store.RestoreLast(requireStopped: false);
+        SetControls(originalSettings);
+        if (SettingsProfile.Import(SettingsProfile.Export(originalSettings)) != originalSettings)
+            throw new InvalidDataException("Settings profile roundtrip failed.");
+        await RefreshLibraryAsync();
+        if (libraryRows.Count != 1 || (await CheckConflictsAsync(originalSettings)).Count != 0)
+            throw new InvalidDataException("Mod library or self-conflict exclusion failed.");
         int screenshots = 0;
         FrameworkElement content = (FrameworkElement)Content;
         Content = null;
         Border surface = new() { Background = Background, Child = content };
-        foreach ((int width, int height, string size) in new[] { (1000, 740, "desktop"), (780, 600, "compact") })
-        foreach (TabItem tab in new[] { InstallationTab, TouchTab, OutfitTab })
+        foreach ((int width, int height, string size) in new[] { (1120, 740, "desktop"), (880, 600, "compact") })
+        foreach (TabItem tab in new[] { LibraryTab, TouchTab, OutfitTab, DiagnosticsTab, InstallationTab })
         {
             MainTabs.SelectedItem = tab;
             surface.Width = width;
@@ -83,6 +97,7 @@ public partial class MainWindow
         {
             embeddedInstaller = true, installedFiles,
             screenshots, stateRecovery = true, outfitApplyRestore = true, installerRestore = true,
+            hotSettingsSaveRestore = true, profiles = true, modLibrary = true, selfConflictsExcluded = true,
             liveInstallationModified = false, inGameVerified = false,
         }, new JsonSerializerOptions { WriteIndented = true }));
     }

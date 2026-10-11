@@ -2,13 +2,13 @@
 
 ## 关系
 
-`EndfieldJiggleEFMI-v0.2.1-win64.zip` 是游戏运行时 Mod。安装后即由
+`EndfieldJiggleEFMI-v0.2.2-win64.zip` 是游戏运行时 Mod。安装后即由
 EFMI / XXMI 在游戏启动时读取；不需要启动或后台运行配置器。
 
-`EndfieldJiggleConfigurator-v0.2.1-win64.zip` 是可选的 Windows x64 设置界面。
-完整包里的 EXE 内置运行时，也可安装、升级、恢复自有 Mod，以及分析和适配换装。
-运行参数应用后可关闭或移除配置器，
-下次启动游戏仍会读取 Mod 文件夹中的已保存值。
+拖放包中的 `Configurator/EndfieldJiggleConfigurator.exe` 是可选的 Windows x64
+设置界面。它内置运行时，也可安装、升级、恢复自有 Mod，以及分析和适配换装。
+运行参数应用后可关闭或移除配置器，下次启动游戏仍会读取 Mod 文件夹中的已保存值。
+纯 Mod 包不含 EXE。
 
 程序不会安装注入器，不修改游戏本体、`d3dx.ini`、`d3d11.dll` 或全局 `ShaderFixes`。
 安装只复制内置自有运行时；换装适配须确认后在原目录修改 INI，不改模型或纹理。
@@ -16,28 +16,58 @@ EFMI / XXMI 在游戏启动时读取；不需要启动或后台运行配置器�
 
 ## 安装与换装
 
-完整 ZIP 解压后双击 `Install.cmd`，选择 EFMI 目录，点击“安装 / 升级”。
-程序会把自己放入安装目录，后续可直接打开安装目录中的 EXE。
-升级保留可读取的设置，备份保存到 `EFMI/EndfieldJiggleBackups/`。
-恢复安装前版本时，请从原解压包启动程序，以免替换正在运行的自身。
+拖放 ZIP 解压后，把 `EndfieldJiggleEFMI` 文件夹直接放入 EFMI 的 `Mods`。
+首次安装不需要打开 EXE。程序在 `Configurator/EndfieldJiggleConfigurator.exe`，
+自动定位所在 Mod，第一屏为当前 Mod 库。
+可识别 EFMI / Mods / EXE 所在目录，以及误套一层的
+`EndfieldJiggleEFMI/EndfieldJiggleEFMI`。检测到多份启用的运行时时拒绝猜选。
+记住上次选择的目录；附近发现 XXMI Launcher 配置时，会只读取 EFMI 的安装路径。
+不会全盘搜索或自动搬动文件。多套一层时允许配置与换装适配，
+但安装器升级仍需先整理到标准目录。
+拖放包采用手动复制安装，不会自动扫描后搬动或覆盖文件。更新前请先备份
+`Mods/EndfieldJiggleEFMI`；如要使用配置器的安装、升级或恢复功能，需从其界面
+选择 EFMI 路径并逐项确认操作。
 
 在“换装适配”页选择或拖入当前 `EFMI/Mods` 内的原换装目录，点击“分析”，
-确认支持的绘制后“原目录适配”。不再生成 `EJTouch_...` 的第二份换装。
+确认并勾选支持的绘制后点击“适配所选绘制”。不再生成 `EJTouch_...` 的第二份换装。
 原 INI 保存在该换装的 `DISABLED_EJTouchBackups/`，支持“恢复原换装”。
 已有旧包装器不重复生成；旧复制版与原换装不能同时开启。
 
-“游戏内重载模式（F10）”只允许换装包装器的写入/恢复，仍会阻止 XXMI 同时改文件。
+“F10 重载模式”允许快捷键、参数及换装包装器的写入/恢复。
+换装写入仍会阻止 XXMI 同时改文件；改键和改参不要求关闭启动器。
 按提示关闭触摸、切换角色使目标离开画面，操作结束后再回游戏按 F10。
 不自动发送按键，不监控或自动复制新 Mod，不保证自定义着色器热加载。
-QAQM 状态恢复、基础运行时安装和参数改动仍要求退出游戏。
+QAQM 状态恢复和基础运行时安装仍要求退出游戏。
+
+## Mod 库与参数
+
+Mod 库按当前 Mods 目录扫描，可搜索、显示停用项并加载作者提供的
+`preview.png`、`preview.jpg`、`cover.png`、`cover.jpg` 或 `logo.png`。
+双击换装打开分析；不会自动启用、改名或适配其它 Mod。
+“换装适配”页可以搜索绘制、全选或清空选择。索引数不是身体部位名称，
+程序不会把猜测的 Body / Cloth 分组当成已验证的解剖划分。
+已经适配的项目需先“恢复原换装”再修改选择，不能叠加包装器。
+
+触摸页有轻柔 / 标准 / 明显三档预设，也可调整半径、位移与拖动比例。
+键盘按钮只在当前程序窗口内录入组合键，不是全局键盘监听。
+鼠标键从列表选择。F10 / F11 保留给 EFMI，单独 Shift 不可设为触摸开关。
+“无 Shift 拖动”仅修改待保存的拖动绑定，不重写第三方菜单。
+JSON 导入只加载待保存参数；导出不更改当前 Mod。
+
+诊断页显示实际 `reload_config` 与其它 INI 中的潜在按键冲突。
+`Mods Display` 是 EFMI 的所有 Mod 总开关，和触摸开关、Draw 诊断不同。
+诊断页会分别列出总开关及临时原版 `show_original` 的实际绑定。
+扫描不求值第三方 condition，不是“当前一定触发”的结论，
+也不读取外部管理器的全局热键。导出的报告包含本机路径，分享前自行脱敏。
+Mod 库、按键扫描、换装与依赖分析在后台执行，扫描可取消。
+配置写入不能中途取消，完成前阻止退出，以保留完整备份流程。
+操作耗时和错误保存在 `%LOCALAPPDATA%/EndfieldJiggle/configurator.log`，
+仅写本机，不上传；日志包含目录，分享前脱敏。
 
 ## 安装配置器
 
-1. 先按使用说明安装 v0.2.1 Mod。完整 `with-configurator` 包已含下述 EXE，
-   无需再下载配置器附件。
-2. 从同一个 GitHub Release 下载配置器 ZIP。
-3. 将其中的 `Configurator` 文件夹放进
-   `EFMI/Mods/EndfieldJiggleEFMI/`，例如：
+拖放包已内置配置器。若已安装纯 Mod 包，可从同一 Release 的拖放包中取出
+`Configurator` 文件夹，放入 `EFMI/Mods/EndfieldJiggleEFMI/`，例如：
 
    ```text
    EFMI/
@@ -51,16 +81,18 @@ QAQM 状态恢复、基础运行时安装和参数改动仍要求退出游戏。
            EndfieldJiggleConfigurator.exe
    ```
 
-4. 双击 `Configurator/EndfieldJiggleConfigurator.exe`。程序会向上查找
+双击 `Configurator/EndfieldJiggleConfigurator.exe`。程序会向上查找
    已安装的 `EndfieldJiggle.ini` 与 `Passes.ini`；也可以手动选择该目录。
 
 ## 应用设置
 
 启动设置、开关/关闭/诊断/拖动按键及共享形变参数，会在点击“应用设置”
-并确认后写入当前 Mod。游戏和 XXMI 必须先退出。之后关闭配置器，从 XXMI
-启动游戏即可使用已保存的设置。
+并确认后写入当前 Mod。默认启用 F10 重载模式：关闭触摸、松开拖动后保存，
+等待写入结束，回到游戏松开所有修饰键，再按实际重载键，通常为 F10。
+重载会初始化非持久状态，触摸开关回到保存的启动默认值。
+关闭重载模式时仍需退出游戏和 XXMI。之后可关闭程序，参数不依赖 EXE 常驻。
 
-v0.2.1 默认保持关闭触摸：`Ctrl+Shift+F8` 切换，`Ctrl+Shift+F7` 强制关闭，
+v0.2.2 默认保持关闭触摸：`Ctrl+Shift+F8` 切换，`Ctrl+Shift+F7` 强制关闭，
 `Ctrl+Shift+F9` 切换诊断，按住 `Shift+鼠标左键` 拖动。
 “恢复此版本默认”只修改界面中的待应用值，仍需确认“应用设置”才会写入。
 
@@ -77,9 +109,9 @@ EFMI/Mods/EndfieldJiggleEFMI/ConfiguratorBackups/
 ## 不使用配置器
 
 不需要额外服务或常驻进程。游戏继续按 `EndfieldJiggle.ini` 中已有的默认值
-和快捷键工作。可选配置器 ZIP 不属于基础 Mod ZIP；仅想使用默认运行时的玩家
-无需打开它。配置器仍支持读取 v0.2.0 运行时；读取或改参不会自动把旧版
-升级为 v0.2.1，请用完整的新版运行时目录升级。
+和快捷键工作。纯 Mod 包不包含配置器；仅想使用默认运行时的玩家无需额外操作。
+拖放包内的配置器仍支持读取旧运行时；读取或改参不会自动升级运行时。
+升级时请按安装说明替换整个 Mod 目录。
 
 ## 构建
 
@@ -87,7 +119,7 @@ EFMI/Mods/EndfieldJiggleEFMI/ConfiguratorBackups/
 
 ```powershell
 .\tools\Build-Configurator.ps1
-.\tools\Test-Configurator.ps1 -ModZipPath 'D:\path\to\EndfieldJiggleEFMI-v0.2.1-win64.zip'
+.\tools\Test-Configurator.ps1 -ModZipPath 'D:\path\to\EndfieldJiggleEFMI-v0.2.2-win64.zip'
 ```
 
 默认构建只生成配置器；传入 `-RuntimeZipPath` 可把经发布回归检查的运行时嵌入 EXE。

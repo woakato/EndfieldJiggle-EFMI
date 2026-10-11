@@ -12,8 +12,9 @@ $output = [IO.Path]::GetFullPath($OutputDirectory)
 if (Test-Path -LiteralPath $output) { throw 'Preserve an existing export directory.' }
 New-Item -ItemType Directory -Path $output -Force | Out-Null
 $inputs = @(
-    (Join-Path $ReleaseBuildDirectory 'EndfieldJiggleEFMI-v0.2.1-win64.zip'),
-    (Join-Path $ReleaseBuildDirectory 'EndfieldJiggleEFMI-v0.2.1-with-configurator-win64.zip'),
+    (Join-Path $ReleaseBuildDirectory 'EndfieldJiggleEFMI-v0.2.2-win64.zip'),
+    (Join-Path $ReleaseBuildDirectory 'EndfieldJiggleEFMI-v0.2.2-with-configurator-win64.zip'),
+    (Join-Path $ReleaseBuildDirectory 'EndfieldJiggleEFMI-v0.2.2-drop-in-win64.zip'),
     $ConfiguratorZipPath
 )
 if ($QaqmRepairZipPath) { $inputs += $QaqmRepairZipPath }
@@ -23,7 +24,7 @@ foreach ($inputPath in $inputs) {
     Copy-Item -LiteralPath $inputFile -Destination $target
     if ((Get-FileHash $inputFile).Hash -cne (Get-FileHash $target).Hash) { throw 'Export copy checksum mismatch.' }
 }
-$sourceZip = Join-Path $output 'EndfieldJiggleEFMI-v0.2.1-source.zip'
+$sourceZip = Join-Path $output 'EndfieldJiggleEFMI-v0.2.2-source.zip'
 Push-Location $root
 try {
     $paths = @(& git ls-files --cached --others --exclude-standard | Sort-Object -Unique)
@@ -38,19 +39,19 @@ try {
         $path = Join-Path $root $relative
         if (!(Test-Path -LiteralPath $path -PathType Leaf)) { throw "Source entry is missing: $relative" }
         [IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
-            $archive, $path, 'EndfieldJiggleEFMI-v0.2.1-source/' + $relative,
+            $archive, $path, 'EndfieldJiggleEFMI-v0.2.2-source/' + $relative,
             [IO.Compression.CompressionLevel]::Optimal) | Out-Null
     }
 } finally { $archive.Dispose() }
-Copy-Item -LiteralPath (Join-Path $root 'docs\V021-VALIDATION.md') -Destination (Join-Path $output 'VALIDATION-zh-CN.md')
+Copy-Item -LiteralPath (Join-Path $root 'docs\V022-VALIDATION.md') -Destination (Join-Path $output 'VALIDATION-zh-CN.md')
 Copy-Item -LiteralPath (Join-Path $root 'docs\INSTALL-zh-CN.md') -Destination (Join-Path $output 'INSTALL-zh-CN.md')
 $files = @(Get-ChildItem -LiteralPath $output -File | ForEach-Object {
     [ordered]@{ file=$_.Name; bytes=$_.Length; sha256=(Get-FileHash $_.FullName).Hash }
 })
 $checksums = @($files | ForEach-Object { "$($_.sha256.ToLowerInvariant()) *$($_.file)" }) -join "`n"
-[IO.File]::WriteAllText((Join-Path $output 'SHA256SUMS-v0.2.1.txt'), $checksums + "`n", [Text.UTF8Encoding]::new($false))
+[IO.File]::WriteAllText((Join-Path $output 'SHA256SUMS-v0.2.2.txt'), $checksums + "`n", [Text.UTF8Encoding]::new($false))
 [ordered]@{
-    schema=1; version='v0.2.1'; created=(Get-Date).ToString('o'); files=$files
+    schema=1; version='v0.2.2'; created=(Get-Date).ToString('o'); files=$files
     sourceFiles=$paths.Count; releaseBuildDirectory=(Resolve-Path $ReleaseBuildDirectory).Path
     liveInstallationModified=$false; inGameVerified=$false; githubPublished=$false
 } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $output 'export-manifest.json') -Encoding utf8

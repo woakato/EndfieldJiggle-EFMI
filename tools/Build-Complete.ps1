@@ -37,7 +37,8 @@ if (!(Test-Path -LiteralPath $smokeReport)) {
 }
 $smoke = Get-Content -LiteralPath $smokeReport -Raw | ConvertFrom-Json
 if (!$smoke.embeddedInstaller -or !$smoke.stateRecovery -or !$smoke.outfitApplyRestore -or
-    !$smoke.installerRestore -or $smoke.screenshots -ne 6 -or $smoke.liveInstallationModified) {
+    !$smoke.installerRestore -or !$smoke.hotSettingsSaveRestore -or !$smoke.profiles -or
+    !$smoke.modLibrary -or $smoke.screenshots -ne 10 -or $smoke.liveInstallationModified) {
     throw 'The embedded EXE did not pass all complete workflow smoke gates.'
 }
 Write-Output "SMOKE_REPORT=$smokeReport"

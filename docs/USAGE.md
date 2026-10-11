@@ -2,13 +2,13 @@
 
 ## 先确认下载的是哪一种版本
 
-Windows 使用者可下载 `EndfieldJiggleEFMI-v0.2.1-with-configurator-win64.zip`
-（含配置器），或 `EndfieldJiggleEFMI-v0.2.1-win64.zip`（仅 Mod）。
+Windows 使用者推荐下载 `EndfieldJiggleEFMI-v0.2.2-drop-in-win64.zip`
+（拖放即用，含可选配置器），也可下载
+`EndfieldJiggleEFMI-v0.2.2-win64.zip`（仅 Mod，不含 EXE）。
 GitHub 自动生成的 `Source code` 归档以及单独标记的 `v0.1.0-source`
 都只是源码，不是安装包。
 
-另有可选的 `EndfieldJiggleConfigurator-v0.2.1-win64.zip`。
-完整构建的 EXE 内置运行时，可安装、改键和原目录换装适配，不会常驻后台。
+配置器已内置在拖放包，可安装、改键和原目录换装适配，不会常驻后台。
 
 ## 完整运行时的测试流程
 
@@ -20,17 +20,17 @@ GitHub 自动生成的 `Source code` 归档以及单独标记的 `v0.1.0-source`
 - 已备份已有同名 Mod 文件夹。
 - 游戏与原版模型在未开启触摸时显示正常。
 
-完整包可双击 `Install.cmd`，在程序中选择 EFMI 目录安装；也支持下述手动安装。
-不要照搬 JiggleForge 的 ZZMI 资源或快捷键，不要覆盖 `d3d11.dll`、全局 `ShaderFixes`
+拖放包采用下述手动安装。不要照搬 JiggleForge 的 ZZMI 资源或快捷键，
+不要覆盖 `d3d11.dll`、全局 `ShaderFixes`
 或其他 Mod。
 
 ### 安装步骤
 
-1. 下载并解压上述 v0.2.1 安装包。
+1. 下载并解压上述 v0.2.2 安装包。
 2. 完全退出游戏和 XXMI 启动器。
 3. 找到自己 EFMI 包中的 `Mods` 文件夹。
 4. 将已有 `Mods/EndfieldJiggleEFMI` 备份到 `Mods` 之外（如果存在）。
-5. 将压缩包内的 `Mods/EndfieldJiggleEFMI` 复制到 EFMI 的 `Mods`。
+5. 将拖放包内的 `EndfieldJiggleEFMI` 复制到 EFMI 的 `Mods`。
 6. 确认路径为 `EFMI/Mods/EndfieldJiggleEFMI/EndfieldJiggle.ini`。
 7. 通过 XXMI 启动游戏。触摸默认关闭。
 
@@ -67,13 +67,14 @@ GitHub 自动生成的 `Source code` 归档以及单独标记的 `v0.1.0-source`
 ### 可选 EXE 配置器
 
 程序提供安装、配置和换装适配；只使用已有运行时不需要打开它。
-完整包已包含 `Configurator`，无需另行解压配置器附件。
-先安装基础 Mod ZIP，再将配置器 ZIP 内的 `Configurator` 文件夹放入
-`EFMI/Mods/EndfieldJiggleEFMI/`。打开
+拖放包已包含 `Configurator`。若已安装纯 Mod 包，可将拖放包内的
+`Configurator` 文件夹放入 `EFMI/Mods/EndfieldJiggleEFMI/`。打开
 `Configurator/EndfieldJiggleConfigurator.exe` 后，程序会自动定位同级 Mod；
 也可手动选择 `EndfieldJiggle.ini` 与 `Passes.ini` 所在目录。
 
-加载配置只读文件。点“保存配置”前必须退出游戏和 XXMI。参数保存仅更新
+加载配置只读文件。默认“F10 重载模式”允许在游戏运行时保存快捷键和参数，
+先关闭触摸并松开拖动，保存结束后回到游戏松开 Ctrl / Shift / Alt，再按实际重载键。
+取消重载模式时需退出游戏和 XXMI。参数保存仅更新
 本 Mod 的 `EndfieldJiggle.ini`、`Passes.ini`，以及存在时的 `Outfits.ini`，
 并将更新前字节及时间戳备份至 `ConfiguratorBackups`。着色器、缓存、
 `d3dx.ini`、注入 DLL 和游戏文件不会被编辑。原目录换装适配会在另行确认后
@@ -83,7 +84,7 @@ GitHub 自动生成的 `Source code` 归档以及单独标记的 `v0.1.0-source`
 文件夹；下次从 XXMI 启动时仍会使用保存的值。若只使用基础包默认快捷键，
 无需下载 EXE。
 
-“恢复上次设置”会校验已改文件的哈希和时间戳后才恢复。若其他工具在应用后
+“撤销上次保存”会校验已改文件的哈希和时间戳后才恢复。若其他工具在应用后
 又改过这些文件，恢复会拒绝覆盖；请保留 `ConfiguratorBackups` 中的备份。
 
 ## 常见状态
@@ -133,8 +134,8 @@ GitHub 自动生成的 `Source code` 归档以及单独标记的 `v0.1.0-source`
 
 ## 换装兼容
 
-v0.2.1 恢复已有 EJTouch 所需桥接，并可通过程序在普通换装原目录生成支持的绘制包装器。
-安装器升级保留可读取的设置，手动升级使用干净目录，不要用旧 INI 覆盖新版。
+v0.2.2 保留 v0.2.1 的 EJTouch 桥接，并通过程序在普通换装原目录生成支持的绘制包装器。
+手动升级前备份旧目录，不要混合版本或用旧 INI 覆盖新版。
 基础运行时首次升级后完整重启；换装 INI 适配可在确认后按 F10 重载，
 先关闭触摸并让目标角色离开画面。QAQM 缺失声明可在程序中按当前依赖检查和恢复，
 见[换装兼容](OUTFIT-COMPATIBILITY.md)与[状态恢复](QAQM-STATE-RECOVERY.md)。

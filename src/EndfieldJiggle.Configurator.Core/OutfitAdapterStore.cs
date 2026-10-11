@@ -53,7 +53,10 @@ public sealed class OutfitAdapterStore
         root = Path.GetFullPath(outfitDirectory);
         runtime = Path.GetFullPath(runtimeDirectory);
         modsRoot = Path.GetDirectoryName(runtime)
-            ?? throw new InvalidDataException("Runtime directory must be directly inside EFMI Mods.");
+            ?? throw new InvalidDataException("Runtime directory must be inside EFMI Mods.");
+        while (!Path.GetFileName(modsRoot).Equals("Mods", StringComparison.OrdinalIgnoreCase))
+            modsRoot = Path.GetDirectoryName(modsRoot)
+                ?? throw new InvalidDataException("Runtime directory must be inside EFMI Mods.");
         EnsureUnlinked(root);
         EnsureUnlinked(runtime);
         EnsureUnlinked(modsRoot);
@@ -89,7 +92,11 @@ public sealed class OutfitAdapterStore
         };
     }
 
-    public OutfitAdapterInspection Apply(string expectedFingerprint, bool requireStopped = true)
+    public OutfitAdapterInspection Apply(string expectedFingerprint, bool requireStopped = true) =>
+        Apply(expectedFingerprint, null, requireStopped);
+
+    public OutfitAdapterInspection Apply(string expectedFingerprint, IReadOnlyCollection<string>? selectedDrawIds,
+        bool requireStopped = true)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedFingerprint);
         EnsureProcesses(requireStopped);
@@ -105,6 +112,10 @@ public sealed class OutfitAdapterStore
                 string.Join("; ", inspection.MissingRequiredResources));
         if (inspection.SupportedDraws.Count == 0)
             throw new InvalidDataException("No supported indexed draws were found.");
+        HashSet<string>? selection = selectedDrawIds?.ToHashSet(StringComparer.Ordinal);
+        if (selection is not null && (selection.Count == 0 ||
+            selection.Except(inspection.SupportedDraws.Select(draw => draw.Id), StringComparer.Ordinal).Any()))
+            throw new InvalidDataException("Select at least one supported draw from the current inspection.");
 
         List<IniDocument> documents = ReadProject();
         if (!string.Equals(Fingerprint(documents, ReadRuntimeFiles()), expectedFingerprint, StringComparison.Ordinal))
@@ -115,7 +126,8 @@ public sealed class OutfitAdapterStore
         foreach (IniDocument document in documents)
         {
             OutfitAdapterDraw[] selected = inspection.SupportedDraws
-                .Where(draw => draw.SourceFile.Equals(document.RelativePath, StringComparison.OrdinalIgnoreCase)).ToArray();
+                .Where(draw => draw.SourceFile.Equals(document.RelativePath, StringComparison.OrdinalIgnoreCase) &&
+                    (selection is null || selection.Contains(draw.Id))).ToArray();
             if (selected.Length != 0)
                 updated.Add(document.RelativePath, Encode(Patch(document, selected), document.Bytes));
         }

@@ -121,6 +121,32 @@ finally
 }
 Check(rejectedRuntimeDrift, "runtime changes after inspection invalidate the fingerprint");
 
+string selectiveOutfit = Path.Combine(mods, "SelectiveOutfit");
+Directory.CreateDirectory(selectiveOutfit);
+string selectiveIni = Path.Combine(selectiveOutfit, "selective.ini");
+string selectiveOriginal = "namespace = Selective\n[TextureOverrideBody]\n" +
+    "drawindexed = 6, 0, 0\n[TextureOverrideCloth]\ndrawindexed = 9, 6, 0\n";
+File.WriteAllText(selectiveIni, selectiveOriginal);
+OutfitAdapterStore selectiveStore = new(selectiveOutfit, runtime);
+OutfitAdapterInspection selectiveInspection = selectiveStore.Inspect();
+bool rejectedUnknownSelection = false;
+try { selectiveStore.Apply(selectiveInspection.Fingerprint, ["UNKNOWN"], requireStopped: false); }
+catch (InvalidDataException) { rejectedUnknownSelection = true; }
+Check(rejectedUnknownSelection && File.ReadAllText(selectiveIni) == selectiveOriginal,
+    "unknown draw selection is rejected without touching files");
+bool rejectedEmptySelection = false;
+try { selectiveStore.Apply(selectiveInspection.Fingerprint, [], requireStopped: false); }
+catch (InvalidDataException) { rejectedEmptySelection = true; }
+Check(rejectedEmptySelection, "empty draw selection is rejected");
+string selectedId = selectiveInspection.SupportedDraws[0].Id;
+selectiveStore.Apply(selectiveInspection.Fingerprint, [selectedId], requireStopped: false);
+string selectiveResult = File.ReadAllText(selectiveIni);
+Check(selectiveResult.Contains("; EJ-OUTFIT/1 BEGIN " + selectedId) &&
+    !selectiveResult.Contains("; EJ-OUTFIT/1 BEGIN " + selectiveInspection.SupportedDraws[1].Id),
+    "only the user-selected supported draw receives a wrapper");
+selectiveStore.Restore(requireStopped: false);
+Check(File.ReadAllText(selectiveIni) == selectiveOriginal, "selective adaptation restores original bytes");
+
 store.Apply(inspection.Fingerprint, requireStopped: false);
 byte[] adapted = File.ReadAllBytes(outfitPath);
 string adaptedText = Encoding.UTF8.GetString(adapted);

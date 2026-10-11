@@ -15,9 +15,9 @@ Push-Location $root
 try {
     & (Join-Path $PSScriptRoot 'Test-PublicSource.ps1')
     & (Join-Path $PSScriptRoot 'Test-ReleaseRegression.ps1') -ModZipPath $ModZipPath
-    foreach ($name in @('Configurator','Installation','OutfitAdapter','Qaqm')) {
+    foreach ($name in @('Configurator','Installation','OutfitAdapter','Qaqm','Library','Discovery')) {
         [string[]]$arguments = @(
-            if ($name -in @('Configurator','Installation')) { $ModZipPath }
+            if ($name -in @('Configurator','Installation','Discovery')) { $ModZipPath }
         )
         & $DotnetPath run --project (Join-Path $root "tests\EndfieldJiggle.$name.Tests\EndfieldJiggle.$name.Tests.csproj") `
             --configuration Release -- @arguments

@@ -13,7 +13,7 @@ $baseHash = (Get-FileHash -LiteralPath $baseZip -Algorithm SHA256).Hash
 if ($baseHash -cne '75334C06BBBB066FD80A3CEFA9ACF916B6B5F886AA34608C3B2EA3CAAFCEA5D5') {
     throw 'Use the unchanged published v0.2.0 Mod ZIP; unknown compatibility payloads are refused.'
 }
-$version = 'v0.2.1'
+$version = 'v0.2.2'
 $build = Join-Path $root ('reports\releases\' + $version + '-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 Assert-UniversalPath $root $build | Out-Null
 if (Test-Path -LiteralPath $build) { throw 'Preserve existing release build.' }
@@ -94,6 +94,16 @@ if ($ConfiguratorZipPath) {
     $bundleZip = Join-Path $build "EndfieldJiggleEFMI-$version-with-configurator-win64.zip"
     [IO.Compression.ZipFile]::CreateFromDirectory($package, $bundleZip, [IO.Compression.CompressionLevel]::Optimal, $false)
     $outputs.Add([ordered]@{ file=[IO.Path]::GetFileName($bundleZip); sha256=(Get-FileHash $bundleZip).Hash; bytes=(Get-Item $bundleZip).Length })
+    $dropin = Join-Path $build 'drop-in'
+    $dropinRuntime = Join-Path $dropin 'EndfieldJiggleEFMI'
+    New-Item -ItemType Directory -Path $dropinRuntime -Force | Out-Null
+    Get-ChildItem -LiteralPath $runtime -Force | ForEach-Object {
+        Copy-Item -LiteralPath $_.FullName -Destination $dropinRuntime -Recurse
+    }
+    Copy-Item -LiteralPath (Join-Path $root 'docs\INSTALL-zh-CN.md') -Destination (Join-Path $dropin 'INSTALL-zh-CN.md')
+    $dropinZip = Join-Path $build "EndfieldJiggleEFMI-$version-drop-in-win64.zip"
+    [IO.Compression.ZipFile]::CreateFromDirectory($dropin, $dropinZip, [IO.Compression.CompressionLevel]::Optimal, $false)
+    $outputs.Add([ordered]@{ file=[IO.Path]::GetFileName($dropinZip); sha256=(Get-FileHash $dropinZip).Hash; bytes=(Get-Item $dropinZip).Length })
 }
 $checksum = @($outputs | ForEach-Object { "$($_.sha256.ToLowerInvariant()) *$($_.file)" }) -join "`n"
 [IO.File]::WriteAllText((Join-Path $build "SHA256SUMS-$version.txt"), $checksum + "`n", $encoding)
@@ -113,3 +123,4 @@ $report | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $build '
 Write-Output "RELEASE_BUILD=$build"
 Write-Output "MOD_ZIP=$modZip"
 if ($ConfiguratorZipPath) { Write-Output "BUNDLE_ZIP=$bundleZip" }
+if ($ConfiguratorZipPath) { Write-Output "DROPIN_ZIP=$dropinZip" }

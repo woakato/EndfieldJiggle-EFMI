@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.2.2 - 2026-10-11
+
+- Restored a browsable Mod library, named preview images, search and disabled filters.
+- Added selectable indexed draws, parameter presets, shortcut recording, JSON profiles
+  and local diagnostic reports to the embedded portable configurator.
+- Shortcut and parameter saves/restores now support the explicit in-game config
+  reload workflow. Read and display the actual EFMI reload binding.
+- Added read-only third-party key conflict warnings, including Shift menu conflicts.
+  No third-party menu bindings are rewritten.
+- Added a drop-in ZIP whose `EndfieldJiggleEFMI` folder goes directly into `Mods`.
+  EXE remains optional; installation and initial upgrades still require a restart.
+- Retained the v0.2.1 outfit bridge and unchanged shader/cache payload.
+- In-game visual and same-process F10 verification remains pending.
+- Moved directory discovery, library/image loading, outfit/dependency inspection
+  and configuration writes off the UI thread. Serialized operations with
+  cancellable scans and local operation timing logs.
+- Added bounded automatic runtime discovery, launcher path lookup and detection
+  of accidentally double-nested drop-in folders. No directories are moved.
+- Diagnostic view separately reports EFMI Mods Display and show_original bindings.
+
 ## v0.2.1 - 2026-10-10
 
 - Restored the outfit bridge omitted from the v0.2.0 distribution: explicit

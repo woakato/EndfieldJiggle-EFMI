@@ -15,12 +15,11 @@
  · [免责声明](DISCLAIMER.md)
  · [反馈问题](https://github.com/woakato/EndfieldJiggle-EFMI/issues)
 
-> 完整 Windows x64 包包含运行时和安装配置程序，可选择 EFMI 目录安装，
-> 也可手动放入 `Mods`。源码研究版 ZIP 不是游戏安装包。
+> Release 提供拖放包（含可选配置器）和纯 Mod 包。源码归档不是游戏安装包。
 
-v0.2.1 修复 v0.2.0 发布包遗漏的 EJTouch 换装桥接，并修正配置器自定义拖动键
-的会话判断。此修复包的隔离测试不代替游戏实机复验。
-完整包新增原目录换装适配、可回退安装和按实际依赖检查的 QAQM 状态恢复。
+v0.2.2 保留 v0.2.1 的换装桥接修复，补回 Mod 库、预览与逐项绘制选择，
+新增快捷键录入、冲突检查、参数预设和配置导入导出。改键与改参可保存后在游戏内
+重载；首次安装或升级运行时仍需重启。隔离测试不代替游戏实机复验。
 
 ## 项目特点
 
@@ -40,22 +39,21 @@ v0.2.1 修复 v0.2.0 发布包遗漏的 EJTouch 换装桥接，并修正配置�
 ### 普通玩家
 
 从 [最新 Release](https://github.com/woakato/EndfieldJiggle-EFMI/releases/latest)
-下载 `EndfieldJiggleEFMI-v0.2.1-with-configurator-win64.zip`（含可选配置器），
-或 `EndfieldJiggleEFMI-v0.2.1-win64.zip`（仅 Mod）。GitHub 自动提供的 `Source code`
+下载 `EndfieldJiggleEFMI-v0.2.2-drop-in-win64.zip`（推荐，含可选配置器），
+或 `EndfieldJiggleEFMI-v0.2.2-win64.zip`（仅 Mod，不含 EXE）。GitHub 自动提供的 `Source code`
 归档是源代码，不是 Mod 包；不要用它代替 Release 附件。
 
-安装前退出游戏和 XXMI。解压完整 ZIP，双击 `Install.cmd`，选择 EFMI 目录，
-点击“安装 / 升级”。程序备份自有文件，保留可读取的键位和强度。
-也可以将 ZIP 中的 `Mods/EndfieldJiggleEFMI` 复制到 EFMI 的 `Mods` 目录；
-手动升级时先将旧目录备份到 `Mods` 之外，不要混合版本。
+安装前退出游戏和 XXMI。拖放版解压后，将 `EndfieldJiggleEFMI` 整个文件夹放入
+EFMI 的 `Mods` 目录。不打开 EXE 也可使用。需要管理 Mod、修改键位或参数时，
+再打开其中的 `Configurator/EndfieldJiggleConfigurator.exe`。
+升级前先将旧目录备份到 `Mods` 之外，不要混合版本。
 不要覆盖注入 DLL、全局 `ShaderFixes`、`d3dx.ini` 或其他 Mod。
 完整步骤、快捷键、恢复方法和故障处理见[使用说明](docs/USAGE.md)
 及压缩包内的 `INSTALL-zh-CN.md`。
 
-完整包已包含 EXE。改键或调整参数时，也可另下载
-`EndfieldJiggleConfigurator-v0.2.1-win64.zip`，将其中的 `Configurator`
-文件夹放进 `EFMI/Mods/EndfieldJiggleEFMI/`。双击其中的配置器，应用的值会
-保存在 Mod 文件夹中；关闭 EXE 后，游戏下次启动仍会使用这些设置。
+拖放包已包含 EXE；纯 Mod 包不含配置器。配置器保存的值位于 Mod 文件夹中；
+关闭 EXE 后游戏仍会使用这些设置。保存后按配置器显示的 EFMI 重载键应用，
+首次安装或升级运行时仍需重启游戏。
 基础 Mod 不依赖配置器，也不需要常驻。详见[可选配置器说明](docs/CONFIGURATOR.md)。
 
 ### 已具备完整运行时的测试者
@@ -83,6 +81,7 @@ QAQM 状态文件缺失与桥接缺失是独立问题，详见[换装兼容说�
 
 程序的“换装适配”页可分析并在原目录包装支持的索引绘制，支持撤销。
 不复制换装模型，不新建第二份换装 Mod；原目录 INI 会修改并保存备份。
+可逐项选择支持的绘制；调整已经适配的选择时先恢复原换装，再重新选择与适配。
 适配完成后可在游戏内按 F10 重载，具体限制见[换装兼容说明](docs/OUTFIT-COMPATIBILITY.md)。
 自定义顶点着色器、动态绘制范围等不受支持，程序会报告，不能承诺任意换装兼容。
 本版本不提供滚轮深度控制、独立部件分组编辑或自动更新。
@@ -92,7 +91,8 @@ QAQM 状态文件缺失与桥接缺失是独立问题，详见[换装兼容说�
 **基础 Mod 压缩包为什么没有 EXE？**
 
 基础 `win64.zip` 是由 EFMI 加载的运行时 Mod，不需要 EXE。改键和调整参数时，
-使用完整包中的配置器或单独的可选配置器附件；仅使用默认配置时不必打开它。
+使用拖放包内的配置器；若安装的是纯 Mod 包，可将其替换为拖放包中的
+`Configurator` 文件夹。仅使用默认配置时不必打开配置器。
 
 **是不是每个角色都需要单独导出资源？**
 

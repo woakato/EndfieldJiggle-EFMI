@@ -5,7 +5,7 @@ namespace EndfieldJiggle.Configurator;
 
 public partial class App : Application
 {
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
         MainWindow window = new();
@@ -13,7 +13,7 @@ public partial class App : Application
         {
             try
             {
-                window.RunIsolatedSmoke(output);
+                await window.RunIsolatedSmokeAsync(output);
                 Shutdown(0);
             }
             catch (Exception error)
