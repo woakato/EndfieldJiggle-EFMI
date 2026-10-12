@@ -2,6 +2,13 @@
 
 ## v0.2.2 Standalone Bundle - 2026-10-12
 
+- Fixed Windows error 740 when the game requires administrator privileges:
+  retry the same saved selection through Windows elevation, handle cancellation,
+  and prevent repeated elevation loops. Kept ordinary launcher startup asInvoker.
+- Clarified the game executable field with an Endfield.exe label, empty-field
+  prompt, a named browse button and a persistent path hint.
+- Added Hypergryph Launcher locations to bounded game discovery and replaced raw
+  Windows startup exceptions with actionable Chinese messages.
 - Added a portable bundle for users without XXMI Launcher, alongside the existing
   XXMI drop-in and Mod-only packages in the same Release.
 - Bundled unmodified official EFMI 1.4.8 and XXMI-Libs 1.2.2 libraries, preserving

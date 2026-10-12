@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Security.Principal;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Media;
@@ -18,11 +19,13 @@ public partial class MainWindow : Window
     private bool ready;
     private bool closeAfterCancellation;
     private bool busy;
+    private bool elevationRetried;
 
     public MainWindow() => InitializeComponent();
 
-    public async Task InitializeAsync(bool autoLaunch)
+    public async Task InitializeAsync(bool autoLaunch, bool alreadyRetried = false)
     {
+        elevationRetried = alreadyRetried;
         SetBusy(true);
         try
         {
@@ -38,7 +41,8 @@ public partial class MainWindow : Window
                 if (found is not null) GamePathBox.Text = found.Executable;
             }
             StatusText.Text = string.IsNullOrWhiteSpace(GamePathBox.Text)
-                ? "请选择 Endfield.exe。" : "完整包校验通过，待启动。";
+                ? "点击“选择游戏”，找到游戏安装目录中的 Endfield.exe。"
+                : "完整包校验通过，已选择游戏，待启动。";
         }
         catch (Exception error) { Report(error); }
         finally { SetBusy(false); }
@@ -50,7 +54,8 @@ public partial class MainWindow : Window
     {
         List<string> roots = [Environment.CurrentDirectory, AppContext.BaseDirectory,
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "GRYPHLINK"),
-            @"D:\GRYPHLINK"];
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Hypergryph Launcher"),
+            @"D:\GRYPHLINK", @"D:\Hypergryph Launcher"];
         using RegistryKey? uninstall = Registry.LocalMachine.OpenSubKey(
             @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall");
         if (uninstall is not null)
@@ -116,6 +121,7 @@ public partial class MainWindow : Window
         SetBusy(true);
         launchCancellation = new();
         CancelButton.Visibility = Visibility.Visible;
+        bool relaunched = false;
         try
         {
             GameLocation game = await Task.Run(() => settings.Save(selected));
@@ -125,6 +131,20 @@ public partial class MainWindow : Window
                 launchCancellation.Token));
             Log("EFMI loaded");
         }
+        catch (Exception error) when (LaunchSession.ShouldRequestElevation(error, IsElevated(), elevationRetried))
+        {
+            Log(error.ToString());
+            StatusText.Text = "游戏需要管理员权限，正在通过 Windows 获取启动权限…";
+            try
+            {
+                using Process process = Process.Start(LaunchSession.CreateElevatedLauncherStartInfo(
+                    Path.Combine(package.Root, "EndfieldJiggleLauncher.exe")))
+                    ?? throw new IOException("未能打开管理员启动器，请右键本程序以管理员身份运行。");
+                relaunched = true;
+                Log("Elevated launcher started");
+            }
+            catch (Exception elevationError) { Report(elevationError); }
+        }
         catch (OperationCanceledException) { StatusText.Text = "已取消等待。"; }
         catch (Exception error) { Report(error); }
         finally
@@ -133,8 +153,14 @@ public partial class MainWindow : Window
             launchCancellation = null;
             CancelButton.Visibility = Visibility.Collapsed;
             SetBusy(false);
-            if (closeAfterCancellation) Close();
+            if (closeAfterCancellation || relaunched) Close();
         }
+    }
+
+    private static bool IsElevated()
+    {
+        using WindowsIdentity identity = WindowsIdentity.GetCurrent();
+        return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e) => launchCancellation?.Cancel();
@@ -171,7 +197,8 @@ public partial class MainWindow : Window
 
     private void Report(Exception error)
     {
-        StatusText.Text = error.Message;
+        StatusText.Text = error is Win32Exception windowsError
+            ? LaunchSession.DescribeWindowsFailure(windowsError) : error.Message;
         Log(error.ToString());
     }
 
@@ -208,7 +235,7 @@ public partial class MainWindow : Window
         GamePathBox.Text = @"D:\游戏\明日方舟终末地\EndField Game\Endfield.exe";
         StatusText.Text = "完整包校验通过，待启动。";
         Show();
-        foreach ((int width, int height) in new[] { (760, 480), (620, 440) })
+        foreach ((int width, int height) in new[] { (760, 520), (640, 480) })
         {
             Width = width;
             Height = height;
@@ -221,13 +248,22 @@ public partial class MainWindow : Window
             using FileStream stream = File.Create(Path.Combine(output, $"launcher-{width}x{height}.png"));
             encoder.Save(stream);
         }
+        GamePathBox.Clear();
+        StatusText.Text = "点击“选择游戏”，找到游戏安装目录中的 Endfield.exe。";
+        await Dispatcher.InvokeAsync(UpdateLayout, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        RenderTargetBitmap empty = new((int)ActualWidth, (int)ActualHeight, 96, 96, PixelFormats.Pbgra32);
+        empty.Render(this);
+        PngBitmapEncoder emptyEncoder = new();
+        emptyEncoder.Frames.Add(BitmapFrame.Create(empty));
+        using (FileStream stream = File.Create(Path.Combine(output, "launcher-first-run.png")))
+            emptyEncoder.Save(stream);
         SetBusy(true);
         CancelButton.Visibility = Visibility.Visible;
         StatusText.Text = "游戏已启动，等待 EFMI 加载…";
         await Dispatcher.InvokeAsync(UpdateLayout, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         File.WriteAllText(Path.Combine(output, "smoke-report.json"),
             JsonSerializer.Serialize(new { schema = 1, manifest.Version, manifest.EfmiVersion,
-                manifest.LibrariesVersion, officialExportsResolved = true, screenshots = 2,
+                manifest.LibrariesVersion, officialExportsResolved = true, screenshots = 3,
                 gameStarted = false, injectorCalled = false, liveInstallationModified = false },
                 StandalonePackage.JsonOptions));
         Hide();

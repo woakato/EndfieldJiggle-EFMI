@@ -1,9 +1,36 @@
+using System.ComponentModel;
 using System.Diagnostics;
 
 namespace EndfieldJiggle.Launcher.Core;
 
 public static class LaunchSession
 {
+    public static bool ShouldRequestElevation(Exception error, bool elevated, bool alreadyRetried) =>
+        error is Win32Exception { NativeErrorCode: 740 } && !elevated && !alreadyRetried;
+
+    public static ProcessStartInfo CreateElevatedLauncherStartInfo(string launcherPath)
+    {
+        string executable = Path.GetFullPath(launcherPath);
+        ProcessStartInfo start = new(executable)
+        {
+            WorkingDirectory = Path.GetDirectoryName(executable)!,
+            UseShellExecute = true,
+            Verb = "runas",
+        };
+        start.ArgumentList.Add("--launch");
+        start.ArgumentList.Add("--elevated-retry");
+        return start;
+    }
+
+    public static string DescribeWindowsFailure(Win32Exception error) => error.NativeErrorCode switch
+    {
+        740 => "游戏需要管理员权限。请右键本启动器，选择“以管理员身份运行”后重试。",
+        1223 => "已取消管理员授权，游戏尚未启动。",
+        5 => "Windows 拒绝访问。请检查启动器和游戏的运行权限。",
+        2 or 3 => "找不到启动程序或目录，请重新选择游戏本体 Endfield.exe。",
+        _ => $"Windows 启动失败（错误码 {error.NativeErrorCode}）。详细信息见 Logs/launcher.log。",
+    };
+
     public static ProcessStartInfo CreateStartInfo(GameLocation game)
     {
         ProcessStartInfo start = new(game.Executable)

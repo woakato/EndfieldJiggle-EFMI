@@ -52,6 +52,7 @@ v0.2.2 保留 v0.2.1 的换装桥接修复，补回 Mod 库、预览与逐项绘
 
 独立包包含官方 EFMI 1.4.8、XXMI 渲染库 1.2.2、触摸 Mod 与配置器，不需另外安装
 XXMI Launcher 或 .NET。选择游戏本体 `Endfield.exe` 后启动，后续可双击 `Start.cmd`。
+路径栏提供“选择游戏”按钮；游戏需要管理员权限时由 Windows 授权后继续启动。
 换装放入独立包自己的 `EFMI/Mods`。完整步骤见[独立版说明](docs/STANDALONE.md)。
 独立版仍使用 EFMI / XXMI 渲染库；原有 XXMI 安装与独立包分别保存 Mod 和配置。
 

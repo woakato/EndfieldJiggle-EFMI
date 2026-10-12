@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.ComponentModel;
 using System.Text.Json;
 using EndfieldJiggle.Launcher.Core;
 using EndfieldJiggle.Configurator.Core;
@@ -70,6 +71,27 @@ Check(File.ReadAllBytes(gamePath).SequenceEqual(executable), "Selection and sett
 var command = LaunchSession.CreateStartInfo(game);
 Check(command.FileName == gamePath && command.WorkingDirectory == gameDirectory &&
     command.ArgumentList.SequenceEqual(["-force-d3d11"]), "Launch command keeps game path and DX11 separate");
+Win32Exception elevation = new(740, "Raw English error with a private path");
+Check(LaunchSession.ShouldRequestElevation(elevation, elevated: false, alreadyRetried: false),
+    "Elevation-required game startup requests an administrator retry");
+Check(!LaunchSession.ShouldRequestElevation(elevation, elevated: true, alreadyRetried: false) &&
+    !LaunchSession.ShouldRequestElevation(elevation, elevated: false, alreadyRetried: true),
+    "Elevated failures and repeated retries cannot create an elevation loop");
+Check(!LaunchSession.ShouldRequestElevation(new Win32Exception(1223), false, false) &&
+    !LaunchSession.ShouldRequestElevation(new Win32Exception(5), false, false),
+    "Cancelled authorization and other Windows errors do not request another elevation");
+string launcherPath = Path.Combine(bundle, "EndfieldJiggleLauncher.exe");
+var elevatedCommand = LaunchSession.CreateElevatedLauncherStartInfo(launcherPath);
+Check(elevatedCommand.FileName == launcherPath && elevatedCommand.WorkingDirectory == bundle &&
+    elevatedCommand.UseShellExecute && elevatedCommand.Verb == "runas" &&
+    elevatedCommand.ArgumentList.SequenceEqual(["--launch", "--elevated-retry"]),
+    "Administrator retry starts the same bundle and resumes its saved game selection");
+Check(LaunchSession.DescribeWindowsFailure(elevation).Contains("管理员") &&
+    !LaunchSession.DescribeWindowsFailure(elevation).Contains("private path"),
+    "Elevation errors display a Chinese instruction instead of raw exception text");
+Check(LaunchSession.DescribeWindowsFailure(new Win32Exception(1223)).Contains("已取消") &&
+    LaunchSession.DescribeWindowsFailure(new Win32Exception(999)).Contains("999"),
+    "Cancelled authorization and unrecognized errors have useful user messages");
 
 List<LibraryFile> libraries = [];
 foreach (string name in new[] { "3dmloader.dll", "d3d11.dll", "d3dcompiler_47.dll" })
