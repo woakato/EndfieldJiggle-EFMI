@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.2.2 Standalone Bundle - 2026-10-12
+
+- Added a portable bundle for users without XXMI Launcher, alongside the existing
+  XXMI drop-in and Mod-only packages in the same Release.
+- Bundled unmodified official EFMI 1.4.8 and XXMI-Libs 1.2.2 libraries, preserving
+  their notices and pinned source references.
+- Added a self-contained Windows launcher with game selection, bounded discovery,
+  saved paths, DX11 startup, cancellation, local logs and library integrity checks.
+- Added shortcuts to the existing configurator and the bundle's own Mods directory.
+  The v0.2.2 touch runtime and configurator are unchanged.
+- Kept installation inside the extracted bundle. No game files or existing XXMI
+  installation were modified. Real game launch and touch verification remain pending.
+
 ## v0.2.2 - 2026-10-11
 
 - Restored a browsable Mod library, named preview images, search and disabled filters.

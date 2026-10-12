@@ -3,6 +3,14 @@
 本版保留 v0.2.1 的 EJTouch 换装桥接，补充配置器与拖放包。游戏仍由 EFMI / XXMI
 加载触摸 Mod，EXE 用于安装、配置和换装适配，不需要常驻。
 
+## 选择安装包
+
+- 已有 XXMI / EFMI：使用 `drop-in-win64.zip`，按下面步骤放入已有 `Mods`。
+- 未安装 XXMI Launcher：使用 `standalone-win64.zip`，内置 EFMI 和运行库。
+  整包解压后打开 `EndfieldJiggleLauncher.exe`，选择 `Endfield.exe` 启动。
+  详见 [独立版安装说明](STANDALONE.md)；不要把独立包覆盖到已有 EFMI 目录。
+- 已有 EFMI 且不需要程序：使用纯 Mod 的 `win64.zip`。
+
 ## 安装
 
 1. 完全退出游戏与 XXMI。
@@ -55,7 +63,8 @@
 
 退出游戏与 XXMI，将新 `EndfieldJiggleEFMI` 移到 `Mods` 之外，
 再把原先备份目录恢复到原路径。配置器删除不等于恢复 INI 配置。
-本包不包含第三方换装模型、纹理、游戏本体或替换注入 DLL。
+拖放包不包含第三方换装模型、纹理、游戏本体或替换注入 DLL。
+独立包另行内置官方 EFMI 与配套运行库，不改变已有安装。
 
 本版修复经过本地隔离验证；未完成用户实机复验，不保证所有干员、
 换装、部位或游戏更新后的接口兼容。使用前阅读 `DISCLAIMER.md`。

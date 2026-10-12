@@ -10,6 +10,7 @@
 | `tools/` | 适配、签名、ShaderRegex 生成和本地证据校验工具源码 |
 | `tests/` | Windows 原生测试宿主与 CMake 配置 |
 | `src/EndfieldJiggle.Configurator*` | 安装配置器、原目录换装适配和 QAQM 检查/恢复 |
+| `src/EndfieldJiggle.Launcher*` | 独立包游戏路径、官方库加载、便携启动界面 |
 
 源代码树不包含生成的完整 `Passes.ini`、游戏原始着色器、完整游戏派生
 DXBC、注入 DLL、模型、纹理、本机抓取报告或安装记录。发布页的 Windows
@@ -60,6 +61,37 @@ HLSL 片段可以使用 Windows SDK 的 FXC 编译，头文件搜索路径需要
 `v0.1.0-source` 源码快照不能独立生成可安装版本；工具不会下载或自动补齐缺失资源。
 当前 Windows Mod ZIP 是从已验证本地安装构建出来的独立发行资产。
 不要为了通过检查而删除证据约束或伪造构建报告。
+
+独立便携包从已经发布、SHA-256 固定的 v0.2.2 拖放 ZIP 和两个官方依赖 ZIP
+组装，不重新计算逐角色着色器。下载 `EFMI-PACKAGE-v1.4.8.zip`、
+`XXMI-PACKAGE-v1.2.2.zip`，在 Windows / PowerShell 7 / .NET 8 SDK 环境构建：
+
+```powershell
+.\tools\Build-Standalone.ps1 `
+  -DropInZipPath 'D:\packages\EndfieldJiggleEFMI-v0.2.2-drop-in-win64.zip' `
+  -EfmiZipPath 'D:\packages\EFMI-PACKAGE-v1.4.8.zip' `
+  -LibrariesZipPath 'D:\packages\XXMI-PACKAGE-v1.2.2.zip' `
+  -DotnetPath 'D:\dotnet8\dotnet.exe'
+```
+
+脚本拒绝未知输入字节，保留官方库和 Core、Mod 和配置器的原始内容，
+只设置本包 `d3dx.ini` 的启动入口与默认非 Hunting 状态。
+构建用 GitHub CLI 获取固定 commit 的许可文本；离线构建可通过
+`-NoticeCacheDirectory` 提供同名已获取许可证。
+完整包附带 `Sources/EndfieldJiggleEFMI-v0.2.2-source.zip`，记录本次构建源码；
+官方依赖对应源码的固定地址见 `THIRD-PARTY-NOTICES.md`。
+
+仅编译独立启动器不需要游戏或依赖 ZIP：
+
+```powershell
+dotnet publish src/EndfieldJiggle.Launcher/EndfieldJiggle.Launcher.csproj `
+  -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+dotnet run --project tests/EndfieldJiggle.Launcher.Tests -c Release
+```
+
+`Test-Standalone.ps1` 对比已发布 Mod 字节并检查配置器定位。可选的离线
+D3D11 测试使用十二个本地接口着色器和原生宿主，全部写入 `reports`；
+它不等于游戏进程启动验证。
 
 v0.2.1 可从 SHA-256 固定的 v0.2.0 安装 ZIP 重建桥接控制层，保留全部
 原有兼容着色器字节，不依赖从游戏重新导出：

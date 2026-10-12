@@ -2,7 +2,11 @@
 
 ## 先确认下载的是哪一种版本
 
-Windows 使用者推荐下载 `EndfieldJiggleEFMI-v0.2.2-drop-in-win64.zip`
+未安装 XXMI Launcher 时使用[独立便携版](STANDALONE.md)，内置 EFMI、
+渲染库、触摸插件和配置器；整包解压后选择游戏路径启动。
+以下拖放安装步骤适用于已经安装 XXMI / EFMI 的用户。
+
+已有 XXMI 的 Windows 使用者推荐下载 `EndfieldJiggleEFMI-v0.2.2-drop-in-win64.zip`
 （拖放即用，含可选配置器），也可下载
 `EndfieldJiggleEFMI-v0.2.2-win64.zip`（仅 Mod，不含 EXE）。
 GitHub 自动生成的 `Source code` 归档以及单独标记的 `v0.1.0-source`

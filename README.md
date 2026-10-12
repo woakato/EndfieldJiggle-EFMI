@@ -1,6 +1,6 @@
 # EndfieldJiggle EFMI
 
-面向《明日方舟：终末地》EFMI / XXMI 环境的开源角色交互实验项目。
+面向《明日方舟：终末地》的开源角色交互实验项目，提供 XXMI 拖放包与独立便携包。
 通过鼠标拖动角色表面，并在松开后产生回弹，让兼容的原版模型具有实时形变效果。
 
 项目参考并复用了 [JiggleForge](https://github.com/wlytsgd2/JiggleForge)
@@ -10,16 +10,19 @@
 [下载可安装版](https://github.com/woakato/EndfieldJiggle-EFMI/releases/latest)
  · [源码与历史版本](https://github.com/woakato/EndfieldJiggle-EFMI/releases)
  · [使用说明](docs/USAGE.md)
+ · [独立版说明](docs/STANDALONE.md)
  · [可选配置器](docs/CONFIGURATOR.md)
  · [换装兼容](docs/OUTFIT-COMPATIBILITY.md)
  · [免责声明](DISCLAIMER.md)
  · [反馈问题](https://github.com/woakato/EndfieldJiggle-EFMI/issues)
 
-> Release 提供拖放包（含可选配置器）和纯 Mod 包。源码归档不是游戏安装包。
+> 已安装 XXMI / EFMI：下载拖放包。未安装 XXMI Launcher：下载独立便携包。
+> 源码归档不是游戏安装包。
 
 v0.2.2 保留 v0.2.1 的换装桥接修复，补回 Mod 库、预览与逐项绘制选择，
 新增快捷键录入、冲突检查、参数预设和配置导入导出。改键与改参可保存后在游戏内
 重载；首次安装或升级运行时仍需重启。隔离测试不代替游戏实机复验。
+独立便携包内置官方 EFMI、配套渲染库与同版触摸插件，提供游戏路径选择及启动入口。
 
 ## 项目特点
 
@@ -27,7 +30,7 @@ v0.2.2 保留 v0.2.1 的换装桥接修复，补回 Mod 库、预览与逐项绘
 - **鼠标拖动与回弹**：共享拾取、输入控制、弹簧运动和空间形变场。
 - **连续表面响应**：已适配的绘制路径共享形变状态，处理位置及表面方向。
 - **默认关闭交互**：需要手动开启；导航或兼容绘制中断时取消当前交互。
-- **保留原生绘制**：适配原始着色器流程，不随本仓库分发替换注入 DLL。
+- **保留原生绘制**：适配原始着色器流程；拖放包沿用已有 EFMI，独立包内置原版官方渲染库。
 - **可选程序**：安装、修改键位和强度、原目录换装适配，不需后台常驻。
 
 完整本地版本已获得跨角色迁移成功的实机反馈。兼容性仍取决于渲染接口、
@@ -39,9 +42,21 @@ v0.2.2 保留 v0.2.1 的换装桥接修复，补回 Mod 库、预览与逐项绘
 ### 普通玩家
 
 从 [最新 Release](https://github.com/woakato/EndfieldJiggle-EFMI/releases/latest)
-下载 `EndfieldJiggleEFMI-v0.2.2-drop-in-win64.zip`（推荐，含可选配置器），
-或 `EndfieldJiggleEFMI-v0.2.2-win64.zip`（仅 Mod，不含 EXE）。GitHub 自动提供的 `Source code`
-归档是源代码，不是 Mod 包；不要用它代替 Release 附件。
+按安装情况选一个包：
+
+| 安装情况 | 下载附件 | 使用方式 |
+| --- | --- | --- |
+| 已有 XXMI / EFMI | `EndfieldJiggleEFMI-v0.2.2-drop-in-win64.zip` | 放入现有 EFMI 的 `Mods`，含可选配置器 |
+| 没有 XXMI Launcher | `EndfieldJiggleEFMI-v0.2.2-standalone-win64.zip` | 整包解压，打开 `EndfieldJiggleLauncher.exe` |
+| 已有 EFMI，只需 Mod | `EndfieldJiggleEFMI-v0.2.2-win64.zip` | 仅触摸 Mod，不含程序 |
+
+独立包包含官方 EFMI 1.4.8、XXMI 渲染库 1.2.2、触摸 Mod 与配置器，不需另外安装
+XXMI Launcher 或 .NET。选择游戏本体 `Endfield.exe` 后启动，后续可双击 `Start.cmd`。
+换装放入独立包自己的 `EFMI/Mods`。完整步骤见[独立版说明](docs/STANDALONE.md)。
+独立版仍使用 EFMI / XXMI 渲染库；原有 XXMI 安装与独立包分别保存 Mod 和配置。
+
+GitHub 自动提供的 `Source code` 归档是源代码，不是 Mod 包；不要用它代替 Release 附件。
+以下拖放步骤适用于已有 XXMI / EFMI 的用户。
 
 安装前退出游戏和 XXMI。拖放版解压后，将 `EndfieldJiggleEFMI` 整个文件夹放入
 EFMI 的 `Mods` 目录。不打开 EXE 也可使用。需要管理 Mod、修改键位或参数时，
@@ -94,6 +109,12 @@ QAQM 状态文件缺失与桥接缺失是独立问题，详见[换装兼容说�
 使用拖放包内的配置器；若安装的是纯 Mod 包，可将其替换为拖放包中的
 `Configurator` 文件夹。仅使用默认配置时不必打开配置器。
 
+**独立版是不是完全不用 EFMI？**
+
+独立版内置 EFMI 和配套渲染库，不要求预先安装 XXMI Launcher。
+它使用同一版触摸 Mod，并增加本项目自己的便携启动入口。直接从官方游戏启动器
+启动游戏不会加载这个包；更新游戏后，从独立启动器启动。
+
 **是不是每个角色都需要单独导出资源？**
 
 设计上按共享渲染接口适配，不按角色维护白名单。若出现未覆盖的接口，
@@ -136,4 +157,5 @@ QAQM 状态文件缺失与桥接缺失是独立问题，详见[换装兼容说�
 这些集成材料不因此获得 GPL 许可。第三方内容见
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)；游戏及其他作者的素材
 不因此改为 GPL 许可。
+独立包同时保留官方 EFMI / XXMI 库的许可证、对应源码地址及本项目源码快照。
 使用、修改或分享前请阅读[免责声明](DISCLAIMER.md)。
