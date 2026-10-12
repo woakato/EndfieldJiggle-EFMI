@@ -82,7 +82,8 @@ Mod 和配置，不用旧 `d3dx.ini` 或渲染 DLL 覆盖新包。
 - 启动失败时查看本包 `Logs/launcher.log` 与 `EFMI/d3d11_log.txt`；
   分享前遮挡账号、UID 和个人路径。
 
-独立启动器经过隔离检查；真实游戏启动、登录与画面仍需用户验证。
+独立启动器经过隔离检查，2026-10-12 已收到用户确认启动成功的实机反馈。
+登录、画面与触摸效果未在此次反馈中单独确认。
 详见 `VALIDATION-STANDALONE-zh-CN.md` 和 `DISCLAIMER.md`。
 
 许可文本位于 `Licenses`，本项目的构建源码快照位于 `Sources`；

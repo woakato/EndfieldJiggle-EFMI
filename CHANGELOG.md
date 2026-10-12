@@ -18,7 +18,10 @@
 - Added shortcuts to the existing configurator and the bundle's own Mods directory.
   The v0.2.2 touch runtime and configurator are unchanged.
 - Kept installation inside the extracted bundle. No game files or existing XXMI
-  installation were modified. Real game launch and touch verification remain pending.
+  installation were modified.
+- On October 12, 2026, the user confirmed that the corrected standalone launcher
+  starts successfully, resolving the reported Windows error 740. This feedback
+  does not establish new model, touch or same-process F10 verification.
 
 ## v0.2.2 - 2026-10-11
 
