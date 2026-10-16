@@ -1,12 +1,14 @@
 # Package Identity and Maintenance Status
 
-Release preparation, 2026-10-16: after accepting the skin-pass candidate, the
+Published on 2026-10-16 at 21:05:55 +08:00: after accepting the skin-pass candidate, the
 user explicitly authorized publishing the other package types and requested
 that shaders and runtime INIs sit directly inside the extraction directory.
 The resulting release is v0.2.3: pure Mod and drop-in ZIP roots are flat;
 normal standalone retains its launcher/EFMI/Mods structure. v0.2.2 assets and
-the separate no-touch diagnostic builds are preserved. Publication must be
-confirmed from the release API, not inferred from this preparation note.
+the separate no-touch diagnostic builds are preserved. The release API confirmed
+v0.2.3 as the latest stable release, with eight uploaded asset digests matching
+local files. Release id: `414970104`; tag commit:
+`9628ae4f6868cc125ec4ef045cf894b67bb0afa1`.
 The release runtime is byte-identical to the accepted skin-pass candidate.
 The configurator is rebuilt with that runtime, supports thirteen native passes,
 and upgrades/restores the actual version-named direct child of Mods.
@@ -24,6 +26,26 @@ Recheck the API before claiming a later upload or latest release.
 | `v0.2.0` | Installable pure Mod and optional configurator; predates the restored outfit bridge. |
 | `v0.2.1` | Outfit bridge repair, pure Mod, complete installer/configurator bundle, separate configurator and source. |
 | `v0.2.2` | Three published installable package types below. Local maintenance builds also use this version, so the version string alone is insufficient. |
+| `v0.2.3` | Published original-skin black-surface repair, flat pure Mod/drop-in packages and normal standalone; updated embedded configurator and source. |
+
+## Published v0.2.3 Packages
+
+Final local archives are under the parent project's `reports/publication/v0.2.3`.
+The source archive and installation instructions are separate assets. Pure Mod
+and drop-in archives put shaders and runtime INIs directly at ZIP root; extract
+each into its own directory under Mods. Standalone retains the EndfieldJiggle
+product root and its EFMI/Mods/EndfieldJiggleEFMI directory.
+
+| Asset | SHA-256 |
+| --- | --- |
+| `EndfieldJiggleEFMI-v0.2.3-win64.zip` | `316bf5c51cbde4991d2b03e32b09bceb7769e55f5bf561874488a25b66ea4622` |
+| `EndfieldJiggleEFMI-v0.2.3-drop-in-win64.zip` | `1cec1d603214b4e0b54bcbdfb500882705e59f316639585b4906314ed7e789d1` |
+| `EndfieldJiggleEFMI-v0.2.3-standalone-win64.zip` | `02a28a7c007114381bcc97257d5fdf1f9de189bbf9abe0756393c75ada2685ea` |
+
+The normal standalone includes the validated manual-official-launcher,
+limited-rights process-query and cache-path preflight revisions. No new
+diagnostic package was built or published. The original v0.2.2 three-package
+hashes were rechecked after publication and remain unchanged.
 
 ## Published v0.2.2 Packages
 
