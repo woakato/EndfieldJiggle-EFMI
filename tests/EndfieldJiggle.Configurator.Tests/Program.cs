@@ -65,7 +65,7 @@ using (ZipArchive archive = ZipFile.OpenRead(archivePath))
     string prefix = entryPoint.FullName[..^"EndfieldJiggle.ini".Length];
     ZipArchiveEntry[] files = archive.Entries.Where(entry =>
         entry.FullName.StartsWith(prefix, StringComparison.Ordinal) &&
-        (entry.FullName[prefix.Length..] is "EndfieldJiggle.ini" or "Passes.ini" or "Outfits.ini" or "JiggleForge-LICENSE" ||
+        (entry.FullName[prefix.Length..] is "EndfieldJiggle.ini" or "Passes.ini" or "Outfits.ini" or "OutfitPreparation.ini" or "JiggleForge-LICENSE" ||
          entry.FullName[prefix.Length..].StartsWith("shaders/", StringComparison.Ordinal)) &&
         !entry.FullName.EndsWith('/')).ToArray();
     Check(files.Any(entry => entry.FullName == prefix + "EndfieldJiggle.ini") &&
@@ -109,13 +109,14 @@ string randomShader = packageFiles.Keys.First(path => path.StartsWith(
 RuntimeSettingsStore store = new(runtime);
 RuntimeSettingsSnapshot original = store.Read();
 bool includesOutfits = packageFiles.ContainsKey("Outfits.ini");
+bool includesPreparation = packageFiles.ContainsKey("OutfitPreparation.ini");
 Check(!original.Settings.DefaultEnabled &&
       original.Settings.Toggle == new KeyBinding("VK_F8", Ctrl: true, Shift: true) &&
       original.Settings.Stop == new KeyBinding("VK_F7", Ctrl: true, Shift: true) &&
       original.Settings.Diagnostic == new KeyBinding("VK_F9", Ctrl: true, Shift: true) &&
       original.Settings.Drag == new KeyBinding("VK_LBUTTON", Shift: true),
     "Reader reflects the documented default-off settings");
-Check(packageFiles.Count == (includesOutfits ? 14 : 13) &&
+Check(packageFiles.Count == (includesPreparation ? 15 : includesOutfits ? 14 : 13) &&
       original.Settings.Physics == new PhysicsSettings(0.12m, 0.04m, 0.75m),
     "The configurator recognizes both native-only and outfit-enabled install payloads");
 
@@ -147,6 +148,8 @@ Check(applied.BackupDirectory is not null &&
 
 string runtimeText = File.ReadAllText(Path.Combine(runtime, "EndfieldJiggle.ini"));
 string passesText = File.ReadAllText(Path.Combine(runtime, "Passes.ini"));
+bool hasReceivers = passesText.Contains("[CommandListReceiveNative1]", StringComparison.Ordinal);
+int receiverGates = hasReceivers ? 2 : 0;
 Check(runtimeText.Contains("global $enabled = 1", StringComparison.Ordinal) &&
       runtimeText.Contains("key = no_ctrl no_shift no_alt VK_F8", StringComparison.Ordinal) &&
       runtimeText.Contains("key = ctrl no_shift no_alt VK_XBUTTON2", StringComparison.Ordinal) &&
@@ -165,7 +168,7 @@ if (includesOutfits)
 {
     Check(runtimeText.Contains("if $outfit_active\n    drawindexedinstanced = $outfit_count", StringComparison.Ordinal) &&
           passesText.Split("if !$outfit_seen &&", StringSplitOptions.None).Length ==
-              (passesText.Contains("[CommandListBindPass13]", StringComparison.Ordinal) ? 14 : 13) &&
+              (passesText.Contains("[CommandListBindPass13]", StringComparison.Ordinal) ? 14 : 13) + receiverGates &&
           File.ReadAllBytes(Path.Combine(runtime, "Outfits.ini")).SequenceEqual(packageFiles["Outfits.ini"].Bytes),
         "Configuring the exported release preserves outfit picking, exclusions and callbacks");
 }
@@ -231,7 +234,8 @@ string[] originalGates = File.ReadAllLines(Path.Combine(runtime, "Passes.ini"))
                    line.Contains("$ui_mouse", StringComparison.Ordinal)).ToArray();
 bool hasSkinPass = File.ReadAllText(Path.Combine(runtime, "Passes.ini"))
     .Contains("[CommandListBindPass13]", StringComparison.Ordinal);
-Check(originalGates.Length == (hasSkinPass ? 13 : 12), "The installed pass file has the reviewed native input gates");
+Check(originalGates.Length == (hasSkinPass ? 13 : 12) + receiverGates,
+    "The installed pass file has the reviewed native input gates");
 string extraGate = File.ReadAllText(Path.Combine(runtime, "Passes.ini")) +
     Environment.NewLine + "if $enabled && $mod_id > 0 && !$ui_mouse && !$cancelled";
 string gatePath = Path.Combine(runtime, "Passes.ini");
@@ -248,6 +252,44 @@ if (hasSkinPass)
         "The added skin program cannot silently use the wrong pass");
     File.WriteAllBytes(gatePath, passesOriginal);
 }
+if (hasReceivers)
+{
+    Check(passesOriginal.SequenceEqual(packageFiles["Passes.ini"].Bytes),
+        "Saving and restoring settings preserves every structural receiver byte");
+    string receiverText = Encoding.UTF8.GetString(passesOriginal);
+    foreach ((string changed, string reason) in new[]
+    {
+        (receiverText.Replace("[CommandListReceiveNative2]", "[MissingReceiver]", StringComparison.Ordinal),
+            "A missing receiver callback is rejected"),
+        (receiverText.Replace("run = CommandListReceiveNative2", "run = CommandListReceiveNative3", StringComparison.Ordinal),
+            "A receiver cannot silently bind an unknown command"),
+        (receiverText.Replace("ShaderRegexEJ_zzReceiver001", "ShaderRegexEJ_ZReceiver001", StringComparison.Ordinal),
+            "Receiver names that steal legacy picker priority are rejected"),
+        (receiverText.Replace("&& !$cancelled && $complete", "&& !$cancelled", StringComparison.Ordinal),
+            "A receiver cannot bypass the completed touch session")
+    })
+    {
+        File.WriteAllText(gatePath, changed, new UTF8Encoding(false));
+        Reject(() => new RuntimeSettingsStore(runtime).Read(), reason);
+        File.WriteAllBytes(gatePath, passesOriginal);
+    }
+}
+
+if (includesPreparation)
+{
+    string preparation = Path.Combine(runtime, "OutfitPreparation.ini");
+    byte[] originalPreparation = File.ReadAllBytes(preparation);
+    DateTime preparationTime = File.GetLastWriteTimeUtc(preparation);
+    File.Move(preparation, preparation + ".bak");
+    Reject(() => new RuntimeSettingsStore(runtime).Read(), "Missing outfit preparation blocks editing a partial installation");
+    File.Move(preparation + ".bak", preparation);
+    File.AppendAllText(preparation, "\n; external edit\n");
+    Reject(() => new RuntimeSettingsStore(runtime).Read(), "Unreviewed preparation cannot silently change callback ordering");
+    File.WriteAllBytes(preparation, originalPreparation);
+    File.SetLastWriteTimeUtc(preparation, preparationTime);
+    Check(new RuntimeSettingsStore(runtime).Read().Settings == original.Settings,
+        "Restored preparation remains usable with saved settings");
+}
 
 string outfitRuntime = Path.Combine(testRoot, "EFMI", "Mods", "outfits-runtime");
 Directory.CreateDirectory(outfitRuntime);
@@ -258,6 +300,7 @@ foreach ((string relative, (byte[] bytes, DateTime time)) in packageFiles)
     File.WriteAllBytes(path, bytes);
     File.SetLastWriteTimeUtc(path, time);
 }
+File.Delete(Path.Combine(outfitRuntime, "OutfitPreparation.ini"));
 File.WriteAllText(Path.Combine(outfitRuntime, "Outfits.ini"),
     """
     namespace = EndfieldJiggleEFMI

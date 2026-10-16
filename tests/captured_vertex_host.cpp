@@ -136,7 +136,9 @@ int wmain(int argc, wchar_t** argv) {
             while (start < 4 && !(signature.Mask & (1 << start))) ++start;
             for (BYTE bit = start; bit < 4; ++bit) if (signature.Mask & (1 << bit)) ++components;
             if (start >= 4 || !components) throw std::runtime_error("Empty output signature");
-            outputs.push_back({0, signature.SemanticName, signature.SemanticIndex, start, components, 0});
+            // Stream-output components are relative to the semantic, not to the
+            // packed register lanes used by the shader signature.
+            outputs.push_back({0, signature.SemanticName, signature.SemanticIndex, 0, components, 0});
             stride += components * sizeof(float);
         }
         ComPtr<ID3D11GeometryShader> streamShader;

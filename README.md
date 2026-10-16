@@ -20,7 +20,11 @@
 > 已安装 XXMI / EFMI：下载拖放包。未安装 XXMI Launcher：下载独立便携包。
 > 源码归档不是游戏安装包。
 
-v0.2.3 补齐当前游戏原皮遗漏的颜色绘制适配，处理触摸时皮肤与描边变形不同步造成的黑面。
+v0.2.3 于 2026-10-16 更新为通用渲染通道修复：根据共用的原生坐标变换同步
+颜色、深度与描边，处理其他原皮仍有触摸黑块的问题。三个安装包和配置器内嵌文件同步更新，
+已下载当天较早版本的用户需要重新下载。
+完整包同时包含换装绘制前的通用通道识别，配置器支持全部十五个运行文件，
+已有 `EJ-OUTFIT/1` 换装包装器不需要重新适配。
 纯 Mod 和 drop-in 包采用直接包含 `shaders` 与运行时 INI 的结构，配置器支持带版本号的
 文件夹及新增绘制。保留 Mod 库、改键、参数预设、配置导入导出与原有换装桥接。
 改键与改参可保存后在游戏内重载；首次安装或升级运行时仍需重启。
@@ -65,7 +69,7 @@ GitHub 自动提供的 `Source code` 归档是源代码，不是 Mod 包；不�
 以下拖放步骤适用于已有 XXMI / EFMI 的用户。
 
 安装前退出游戏和 XXMI。纯 Mod / 拖放 ZIP 内直接包含 `shaders`、`EndfieldJiggle.ini`、
-`Passes.ini`、`Outfits.ini`，请解压到 `Mods` 下一个独立目录，例如
+`Passes.ini`、`Outfits.ini`、`OutfitPreparation.ini`，请解压到 `Mods` 下一个独立目录，例如
 `Mods/EndfieldJiggleEFMI-v0.2.3-drop-in-win64/shaders`；也可命名为 `EndfieldJiggleEFMI`。
 不需要再套 `Mods/EndfieldJiggleEFMI`。不打开 EXE 也可使用。需要管理 Mod、修改键位或参数时，
 再打开其中的 `Configurator/EndfieldJiggleConfigurator.exe`。

@@ -2,6 +2,20 @@
 
 ## v0.2.3 - 2026-10-16
 
+- Added pattern-only outfit preparation before EFMI replacement draws, plus
+  the new skin-color picker callback. Existing wrappers retain their Begin/End
+  interface. All three complete packages and the embedded installer now carry
+  fifteen runtime files; settings, upgrade and restore cover the added file.
+- Replaced the initial v0.2.3 assets after feedback that Tangtang improved but
+  other original characters still showed black regions. The accepted revision
+  retains thirteen exact rules, then adds 28 structural surface receivers and
+  14 geometry fallbacks. They match shared native transforms without an operator
+  registry and preserve native material instructions and legacy picker priority.
+- Synchronized Mod, drop-in, standalone and the configurator's embedded runtime.
+  Existing downloads of the initial v0.2.3 need to be downloaded again.
+- The structural runtime passed 790 static/GPU/loader checks and 431 numerical
+  geometry/captured-vertex checks. The user accepted the candidate for replacing
+  v0.2.3. This is not an all-character or future-shader compatibility guarantee.
 - Added the current-game original skin color program to the touch deformation
   pipeline, synchronizing color with prepass and outline. Kept native material
   instructions and corrected zero-displacement/large-coordinate surface frames.
@@ -11,9 +25,10 @@
   runtime, flat archives, and in-place upgrades/restores in version-named folders.
 - Included the normal standalone manual-official-launcher and cache-path fixes.
   Kept no-touch diagnostics separate from the black-surface repair.
-- Kept the original twelve outfit callbacks; new color coverage is for native
-  geometry, not a claim of new third-party outfit compatibility.
-- Before packaging, the skin runtime passed 226 static/GPU/loader checks and
+- At initial publication, kept the original twelve outfit callbacks; new color
+  coverage then applied to native geometry. The replacement above extends the
+  outfit entry separately.
+- Before the initial publication, the skin runtime passed 226 static/GPU/loader checks and
   102 captured-vertex checks. The user accepted it for release. This does not
   establish all-character, all-outfit or standalone startup compatibility.
 

@@ -14,9 +14,19 @@ try {
     $prefix = $roots[0].FullName.Substring(0, $roots[0].FullName.Length - 'EndfieldJiggle.ini'.Length)
     $files = @($archive.Entries | Where-Object {
         $_.FullName.StartsWith($prefix, [StringComparison]::Ordinal) -and
-        $_.FullName.Substring($prefix.Length) -match '^(EndfieldJiggle\.ini|Passes\.ini|Outfits\.ini|JiggleForge-LICENSE|shaders/[^/]+\.(hlsl|bin))$'
+        $_.FullName.Substring($prefix.Length) -match '^(EndfieldJiggle\.ini|Passes\.ini|Outfits\.ini|OutfitPreparation\.ini|JiggleForge-LICENSE|shaders/[^/]+\.(hlsl|bin))$'
     })
-    if ($files.Count -ne 14) { throw 'Release must include all 14 native/outfit runtime files.' }
+    $preparation = $archive.GetEntry($prefix + 'OutfitPreparation.ini')
+    $expectedCount = if ($preparation) { 15 } else { 14 }
+    if ($files.Count -ne $expectedCount) { throw 'Release must include the complete native/outfit runtime.' }
+    if ($preparation) {
+        $stream = $preparation.Open()
+        try { $digest = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream)) }
+        finally { $stream.Dispose() }
+        if ($digest -cne 'D0EC67C88CE25120532D10C50232F5A6E11944745B4740B5B38712E5E8C094E1') {
+            throw 'Unreviewed early outfit preparation rules.'
+        }
+    }
     foreach ($name in @('EndfieldJiggle.ini','Passes.ini','Outfits.ini')) {
         $entry = @($files | Where-Object { $_.FullName -ceq ($prefix + $name) })
         if ($entry.Count -ne 1) { throw "Missing/duplicate release INI: $name" }
@@ -27,6 +37,9 @@ try {
 $runtime=$texts['EndfieldJiggle.ini']
 $passes=$texts['Passes.ini']
 $outfits=$texts['Outfits.ini']
+if ($outfits.Contains('global $outfit_slot = 0') -ne [bool]$preparation) {
+    throw 'The outfit bridge and early preparation file must be installed together.'
+}
 Assert-NativeOutfitBridge $runtime $passes $outfits
 $checks = 1
 function RejectBridge([string]$Runtime,[string]$Passes,[string]$Outfits) {

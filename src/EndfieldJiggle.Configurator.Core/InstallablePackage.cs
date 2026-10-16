@@ -392,9 +392,11 @@ public sealed class InstallablePackage
             if (!files.TryAdd(name, content.ToArray()))
                 throw new InvalidDataException("内置运行时文件重复：" + name);
         }
-        if (files.Count != 14 || !files.ContainsKey("Outfits.ini") ||
+        bool hasPreparation = files.TryGetValue(RuntimeSettingsStore.OutfitPreparationName, out byte[]? preparation);
+        if (files.Count != (hasPreparation ? 15 : 14) || !files.ContainsKey("Outfits.ini") ||
             !files.ContainsKey("EndfieldJiggle.ini") || !files.ContainsKey("Passes.ini"))
-            throw new InvalidDataException("内置运行时不完整，需包含已审核的 14 个文件。");
+            throw new InvalidDataException("内置运行时不完整，需包含对应版本的全部运行文件。");
+        RuntimeSettingsStore.ValidateOutfitPreparation(files["Outfits.ini"], preparation);
         return files;
     }
 
@@ -410,7 +412,7 @@ public sealed class InstallablePackage
     }
 
     private static bool IsOwnedPayloadName(string name) =>
-        name is "EndfieldJiggle.ini" or "Passes.ini" or "Outfits.ini" or "JiggleForge-LICENSE"
+        name is "EndfieldJiggle.ini" or "Passes.ini" or "Outfits.ini" or "OutfitPreparation.ini" or "JiggleForge-LICENSE"
         || name.StartsWith("shaders/", StringComparison.Ordinal) && Path.GetExtension(name) is ".hlsl" or ".bin" or ".shdr"
         || name is "Configurator/EndfieldJiggleConfigurator.exe" or "Configurator/DOTNET-LICENSE.txt" or
             "Configurator/DOTNET-THIRD-PARTY-NOTICES.txt" or "Configurator/LICENSE" or
@@ -419,7 +421,7 @@ public sealed class InstallablePackage
     private static void EnsureKnownActiveInis(string runtime)
     {
         foreach (string path in EnumerateActiveInis(runtime))
-            if (Path.GetRelativePath(runtime, path) is not ("EndfieldJiggle.ini" or "Passes.ini" or "Outfits.ini"))
+            if (Path.GetRelativePath(runtime, path) is not ("EndfieldJiggle.ini" or "Passes.ini" or "Outfits.ini" or "OutfitPreparation.ini"))
                 throw new InvalidDataException("安装目录有未知的活动 INI，请先核对：" + path);
     }
 

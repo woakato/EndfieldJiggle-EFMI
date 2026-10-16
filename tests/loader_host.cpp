@@ -5,6 +5,8 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <cstring>
+#include <cmath>
 
 using Microsoft::WRL::ComPtr;
 
@@ -73,6 +75,10 @@ int wmain(int argc, wchar_t** argv) {
         D3D11_VIEWPORT viewport{0, 0, 320, 180, 0, 1};
         context->RSSetViewports(1, &viewport);
         float sentinelData[16]{};
+        if (std::wstring(argv[2]) == L"--outfit-probe") {
+            sentinelData[0] = 0.125f;
+            sentinelData[3] = 0.75f;
+        }
         D3D11_BUFFER_DESC sentinelDesc{};
         sentinelDesc.ByteWidth = sizeof(sentinelData);
         sentinelDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
@@ -93,7 +99,8 @@ int wmain(int argc, wchar_t** argv) {
         ComPtr<ID3D11Buffer> ib;
         check(device->CreateBuffer(&ibDesc, &ibInitial, &ib), "index buffer");
         context->IASetIndexBuffer(ib.Get(), DXGI_FORMAT_R16_UINT, 0);
-        const bool eligibilityTest = std::wstring(argv[2]) == L"--eligibility";
+        const bool outfitProbe = std::wstring(argv[2]) == L"--outfit-probe";
+        const bool eligibilityTest = outfitProbe || std::wstring(argv[2]) == L"--eligibility";
         const int firstShader = eligibilityTest ? 3 : 2;
         ComPtr<ID3D11DeviceContext1> context1;
         ComPtr<ID3D11Buffer> cameraBuffer, instanceBuffer, materialBuffer;
@@ -111,6 +118,34 @@ int wmain(int argc, wchar_t** argv) {
             makeConstantBuffer(4096 * 16, instanceBuffer);
             makeConstantBuffer(32 * 16, materialBuffer);
         }
+        auto observeOutfit = [&](int draw) {
+            if (!outfitProbe) return;
+            ComPtr<ID3D11ShaderResourceView> view;
+            context->VSGetShaderResources(118, 1, &view);
+            if (!view) throw std::runtime_error("Missing outfit control probe.");
+            ComPtr<ID3D11Resource> resource;
+            view->GetResource(&resource);
+            ComPtr<ID3D11Buffer> result;
+            check(resource.As(&result), "outfit probe buffer");
+            D3D11_BUFFER_DESC description{};
+            result->GetDesc(&description);
+            description.Usage = D3D11_USAGE_STAGING;
+            description.BindFlags = description.MiscFlags = 0;
+            description.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+            ComPtr<ID3D11Buffer> staging;
+            check(device->CreateBuffer(&description, nullptr, &staging), "outfit staging");
+            context->CopyResource(staging.Get(), result.Get());
+            D3D11_MAPPED_SUBRESOURCE mapped{};
+            check(context->Map(staging.Get(), 0, D3D11_MAP_READ, 0, &mapped), "outfit map");
+            float values[4]{};
+            memcpy(values, mapped.pData, sizeof(values));
+            context->Unmap(staging.Get(), 0);
+            for (float value : values)
+                if (!std::isfinite(value)) throw std::runtime_error("Nonfinite outfit control.");
+            std::cout << "outfit-control " << draw;
+            for (float value : values) std::cout << " " << value;
+            std::cout << '\n';
+        };
         for (int i = firstShader; i < argc; ++i) {
             auto bytes = read(std::filesystem::absolute(argv[i]));
             ComPtr<ID3D11VertexShader> shader;
@@ -125,13 +160,17 @@ int wmain(int argc, wchar_t** argv) {
                 };
                 context->VSSetConstantBuffers(0, 4, constantBuffers);
                 context->DrawIndexed(3, 0, 0);
+                observeOutfit(0);
                 context->DrawIndexedInstanced(3, 1, 0, 0, 0);
+                observeOutfit(1);
                 context->DrawIndexedInstanced(3, 2, 0, 0, 0);
+                observeOutfit(2);
                 ID3D11Buffer* shortCamera = materialBuffer.Get();
                 const UINT firstConstant = 0;
                 const UINT constantCount = 32;
                 context1->VSSetConstantBuffers1(0, 1, &shortCamera, &firstConstant, &constantCount);
                 context->DrawIndexedInstanced(3, 1, 0, 0, 0);
+                observeOutfit(3);
             } else {
                 context->DrawIndexed(0, 0, 0);
             }

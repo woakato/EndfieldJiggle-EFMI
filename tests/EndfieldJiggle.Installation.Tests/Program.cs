@@ -35,6 +35,10 @@ string Efmi(string name)
 }
 
 InstallablePackage package = InstallablePackage.FromRuntimeArchive(File.ReadAllBytes(args[0]));
+bool hasPreparation;
+using (ZipArchive payload = ZipFile.OpenRead(args[0]))
+    hasPreparation = payload.Entries.Any(entry => entry.FullName == "OutfitPreparation.ini" ||
+        entry.FullName.EndsWith("/OutfitPreparation.ini", StringComparison.Ordinal));
 string efmi = Efmi("fresh");
 Dictionary<string, (string Hash, long Time)> protectedFiles = new();
 foreach (string file in new[] { "d3dx.ini", "d3d11.dll", "Mods/unrelated.ini" })
@@ -43,7 +47,8 @@ foreach (string file in new[] { "d3dx.ini", "d3d11.dll", "Mods/unrelated.ini" })
     protectedFiles.Add(path, (Digest(path), File.GetLastWriteTimeUtc(path).Ticks));
 }
 InstallationPreview preview = package.Preview(efmi);
-Check(!preview.IsUpgrade && preview.FileCount == 14, "Fresh preview owns the reviewed 14 runtime files");
+Check(!preview.IsUpgrade && preview.FileCount == (hasPreparation ? 15 : 14),
+    "Fresh preview owns the complete reviewed runtime");
 InstallationResult installed = package.Install(preview, requireStopped: false);
 Check(new RuntimeSettingsStore(installed.RuntimeDirectory).Read().Settings.DefaultEnabled == false,
     "Fresh installation starts disabled");
@@ -106,7 +111,7 @@ using (ZipArchive archive = ZipFile.OpenRead(args[0]))
     {
         if (!entry.FullName.StartsWith(prefix, StringComparison.Ordinal) || entry.FullName.EndsWith('/')) continue;
         string name = entry.FullName[prefix.Length..];
-        if (name is not ("EndfieldJiggle.ini" or "Passes.ini" or "Outfits.ini" or "JiggleForge-LICENSE") &&
+        if (name is not ("EndfieldJiggle.ini" or "Passes.ini" or "Outfits.ini" or "OutfitPreparation.ini" or "JiggleForge-LICENSE") &&
             !name.StartsWith("shaders/", StringComparison.Ordinal)) continue;
         if (name.Contains("..") || name.Contains("Configurator/")) throw new Exception("Unsafe fixture archive");
         string path = Path.Combine(target, name);
@@ -120,7 +125,7 @@ string endfield = Path.Combine(target, "EndfieldJiggle.ini");
 string passes = Path.Combine(target, "Passes.ini");
 File.WriteAllText(endfield, File.ReadAllText(endfield).Replace("global $enabled = 0", "global $enabled = 1"),
     new UTF8Encoding(false));
-File.WriteAllText(passes, File.ReadAllText(passes).Replace("if !$outfit_seen &&", "if "),
+File.AppendAllText(passes, "\n; Fixture difference exercises rollback of a locked owned INI.\n",
     new UTF8Encoding(false));
 string endfieldHash = Digest(endfield);
 DateTime endfieldTime = File.GetLastWriteTimeUtc(endfield);
@@ -137,6 +142,27 @@ File.Move(Path.Combine(nested, "unexpected.ini"), Path.Combine(nested, "unexpect
 File.WriteAllText(Path.Combine(target, "unexpected.ini"), "[Constants]\nglobal $x = 1");
 Reject(() => package.Preview(locked), "Unknown active runtime INI is not overwritten");
 Reject(() => package.Preview(root), "Non-EFMI destination is rejected");
+
+if (args.Length > 1 && hasPreparation)
+{
+    string legacyEfmi = Efmi("legacy-upgrade");
+    InstallablePackage legacy = InstallablePackage.FromRuntimeArchive(File.ReadAllBytes(args[1]));
+    InstallationResult legacyInstall = legacy.Install(legacy.Preview(legacyEfmi), requireStopped: false);
+    RuntimeSettingsStore legacyStore = new(legacyInstall.RuntimeDirectory);
+    legacyStore.Apply(changed, legacyStore.Read().Fingerprint, requireStopped: false);
+    string oldPasses = Digest(Path.Combine(legacyStore.Root, "Passes.ini"));
+    string oldOutfits = Digest(Path.Combine(legacyStore.Root, "Outfits.ini"));
+    InstallationResult migrated = package.Install(package.Preview(legacyEfmi), requireStopped: false);
+    Check(migrated.SettingsPreserved && new RuntimeSettingsStore(migrated.RuntimeDirectory).Read().Settings == changed &&
+          File.Exists(Path.Combine(migrated.RuntimeDirectory, "OutfitPreparation.ini")),
+        "Fourteen-file installation upgrades with settings preserved and preparation installed");
+    InstallablePackage.RestoreInstallation(migrated.RuntimeDirectory, requireStopped: false);
+    Check(!File.Exists(Path.Combine(migrated.RuntimeDirectory, "OutfitPreparation.ini")) &&
+          Digest(Path.Combine(legacyStore.Root, "Passes.ini")) == oldPasses &&
+          Digest(Path.Combine(legacyStore.Root, "Outfits.ini")) == oldOutfits &&
+          new RuntimeSettingsStore(legacyStore.Root).Read().Settings == changed,
+        "Migration restore removes only the added preparation and restores the old configured runtime");
+}
 
 File.WriteAllText(Path.Combine(root, "test-report.json"), JsonSerializer.Serialize(new
 {

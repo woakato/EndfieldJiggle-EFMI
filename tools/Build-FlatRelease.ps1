@@ -3,6 +3,7 @@ param(
     [Parameter(Mandatory)][string]$RuntimeReportPath,
     [Parameter(Mandatory)][string]$DotnetPath,
     [Parameter(Mandatory)][string]$OutputDirectory,
+    [string]$PreviousModZipPath,
     [ValidatePattern('^v\d+\.\d+\.\d+$')][string]$Version = 'v0.2.3'
 )
 Set-StrictMode -Version Latest
@@ -12,12 +13,37 @@ Import-Module (Join-Path $PSScriptRoot 'Universal.Common.psm1') -Force
 $build = Assert-UniversalPath (Join-Path $root 'reports') ([IO.Path]::GetFullPath($OutputDirectory))
 if (Test-Path -LiteralPath $build) { throw 'Preserve previous release evidence.' }
 $runtimeReport = Get-Content -Raw -LiteralPath $RuntimeReportPath | ConvertFrom-Json
-if ($runtimeReport.buildKind -cne 'skin-pass-coverage-candidate' -or $runtimeReport.passes.Count -ne 13) {
-    throw 'Use the reviewed thirteen-program skin-pass runtime.'
+$outfitReceiver = $runtimeReport.buildKind -ceq 'outfit-structural-receiver-candidate'
+if ($runtimeReport.buildKind -ceq 'structural-native-receiver-candidate' -or $outfitReceiver) {
+    if ($runtimeReport.surfaceRuleCount -ne 28 -or $runtimeReport.geometryRuleCount -ne 14 -or
+        !$runtimeReport.legacyRulesPreserved -or !$runtimeReport.pickerBytesAndTimesPreserved -or
+        @($runtimeReport.files | Where-Object {
+            $_.path -ceq 'Passes.ini' -and
+            $_.sha256 -ceq '104CBCB3C2614C1219670C8D598C72A90DEAED756F235D42EB072D9929C509ED'
+        }).Count -ne 1) {
+        throw 'Use the reviewed structural receiver runtime.'
+    }
+} elseif ($runtimeReport.buildKind -cne 'skin-pass-coverage-candidate' -or $runtimeReport.passes.Count -ne 13) {
+    throw 'Use a reviewed skin-pass or structural receiver runtime.'
 }
+if ($outfitReceiver) {
+    foreach ($pair in @(
+        @('Outfits.ini','DC5E5464F7C2F05960886AF9FDD099889443A59224DF34E40AC1956D698A40E3'),
+        @('OutfitPreparation.ini','D0EC67C88CE25120532D10C50232F5A6E11944745B4740B5B38712E5E8C094E1')
+    )) {
+        if (@($runtimeReport.files | Where-Object { $_.path -ceq $pair[0] -and $_.sha256 -ceq $pair[1] }).Count -ne 1) {
+            throw 'Use the GPU-validated outfit receiver files.'
+        }
+    }
+}
+$runtimeFiles = @($runtimeReport.files | Where-Object {
+    $_.path.Replace('\','/') -cmatch '^(EndfieldJiggle\.ini|Passes\.ini|Outfits\.ini|OutfitPreparation\.ini|JiggleForge-LICENSE|shaders/[^/]+\.(hlsl|bin))$'
+})
+$expectedRuntimeCount = if ($outfitReceiver) { 15 } else { 14 }
+if ($runtimeFiles.Count -ne $expectedRuntimeCount) { throw 'Unexpected reviewed runtime file set.' }
 $mod = Join-Path $build 'mod'
 New-Item -ItemType Directory -Path $mod | Out-Null
-foreach ($file in $runtimeReport.files) {
+foreach ($file in $runtimeFiles) {
     $source = Assert-UniversalPath $runtimeReport.packageDirectory (Join-Path $runtimeReport.packageDirectory $file.path)
     if ((Get-FileHash -LiteralPath $source).Hash -cne $file.sha256) { throw "Runtime payload changed: $($file.path)" }
     $target = Assert-UniversalPath $mod (Join-Path $mod $file.path)
@@ -37,6 +63,7 @@ $modZip = Join-Path $build "EndfieldJiggleEFMI-$Version-win64.zip"
 foreach ($test in @('Configurator','Installation','Discovery')) {
     $testArguments = @($modZip)
     if ($test -ceq 'Configurator') { $testArguments += (Join-Path $build 'unit-tests') }
+    if ($test -ceq 'Installation' -and $PreviousModZipPath) { $testArguments += $PreviousModZipPath }
     & $DotnetPath run --project (Join-Path $root "tests\EndfieldJiggle.$test.Tests\EndfieldJiggle.$test.Tests.csproj") `
         --configuration Release -- @testArguments
     if ($LASTEXITCODE -ne 0) { throw "$test release checks failed." }
@@ -61,7 +88,7 @@ $start.ArgumentList.Add($smokePath)
 $process = [Diagnostics.Process]::Start($start)
 if (!$process.WaitForExit(60000)) { $process.Kill(); $process.WaitForExit(); throw 'Configurator smoke timed out.' }
 $smoke = Get-Content -Raw -LiteralPath (Join-Path $smokePath 'smoke-report.json') | ConvertFrom-Json
-if ($process.ExitCode -ne 0 -or !$smoke.embeddedInstaller -or !$smoke.stateRecovery -or
+if ($process.ExitCode -ne 0 -or !$smoke.embeddedInstaller -or $smoke.installedFiles -ne ($expectedRuntimeCount + 6) -or !$smoke.stateRecovery -or
     !$smoke.outfitApplyRestore -or !$smoke.installerRestore -or !$smoke.hotSettingsSaveRestore -or
     !$smoke.profiles -or !$smoke.modLibrary -or $smoke.screenshots -ne 10 -or $smoke.liveInstallationModified) {
     throw 'Configurator failed an isolated workflow gate.'
@@ -85,9 +112,9 @@ try {
 } finally { $configArchive.Dispose() }
 $dropinZip = Join-Path $build "EndfieldJiggleEFMI-$Version-drop-in-win64.zip"
 [IO.Compression.ZipFile]::CreateFromDirectory($dropin, $dropinZip, [IO.Compression.CompressionLevel]::Optimal, $false)
-foreach ($file in $runtimeReport.files) {
+foreach ($file in $runtimeFiles) {
     if ((Get-FileHash -LiteralPath (Join-Path $dropin $file.path)).Hash -cne $file.sha256) {
-        throw 'Drop-in runtime differs from the reviewed skin-pass candidate.'
+        throw 'Drop-in runtime differs from the reviewed runtime.'
     }
 }
 $reportPath = Join-Path $build 'build-report.json'
@@ -99,7 +126,7 @@ $reportPath = Join-Path $build 'build-report.json'
     modZip=$modZip; modSha256=(Get-FileHash -LiteralPath $modZip).Hash
     dropInZip=$dropinZip; dropInSha256=(Get-FileHash -LiteralPath $dropinZip).Hash
     configuratorZip=$configZip; configuratorSmoke=(Join-Path $smokePath 'smoke-report.json')
-    runtimeFiles=$runtimeReport.files; runtimeBytesUnchanged=$true
+    runtimeFiles=$runtimeFiles; runtimeBytesUnchanged=$true
     archiveLayout='shaders and runtime INIs directly at archive root'
     liveInstallationModified=$false; githubPublished=$false
 } | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $reportPath -Encoding utf8

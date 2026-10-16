@@ -2,7 +2,11 @@
 param(
     [Parameter(Mandatory)][string]$BuildReportPath,
     [Parameter(Mandatory)][string]$CaptureInventoryPath,
-    [Parameter(Mandatory)][string]$ReplayHost
+    [Parameter(Mandatory)][string]$ReplayHost,
+    [string[]]$AdditionalDrawIds = @(),
+    [string[]]$DrawIds = @('000036','000074','000079','000086','000100'),
+    [string[]]$CoherentDrawIds = @('000036','000074','000086'),
+    [int[]]$AnchorVertices = @(800,2400,4000)
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -47,7 +51,11 @@ $formats = @{
     R16G16B16A16_UNORM=11; R8G8B8A8_UINT=30
 }
 $fixtures = @{}
-foreach ($id in @('000036','000074','000079','000086','000100')) {
+if ($CoherentDrawIds.Count -lt 3 -or @($CoherentDrawIds | Where-Object { $_ -notin $DrawIds }).Count) {
+    throw 'Supply at least three coherent draws, included in DrawIds, with color second.'
+}
+$referenceId = $CoherentDrawIds[1]
+foreach ($id in $DrawIds + $AdditionalDrawIds | Select-Object -Unique) {
     $draws = @($inventory.draws | Where-Object drawId -CEQ $id)
     if ($draws.Count -ne 1) { throw "Missing captured draw $id" }
     $draw = $draws[0]
@@ -116,11 +124,15 @@ foreach ($id in $fixtures.Keys | Sort-Object) {
     Check ((Get-FileHash -LiteralPath $native.path).Hash -ceq (Get-FileHash -LiteralPath $patched.path).Hash) "zero control preserves all native output bits: $id"
     $baseline[$id] = $native
 }
-$skin = $baseline['000074']
+$skin = $baseline[$referenceId]
 $skinWorld = Attribute $skin 'TEXCOORD' 1
-$camera = [IO.File]::ReadAllBytes((Join-Path $fixtures['000074'].path 'cb0.bin'))
+$camera = [IO.File]::ReadAllBytes((Join-Path $fixtures[$referenceId].path 'cb0.bin'))
 $metrics = @()
-foreach ($anchorVertex in @(800, 2400, 4000)) {
+foreach ($id in $CoherentDrawIds) {
+    Check ($fixtures[$id].count -eq $fixtures[$referenceId].count) "coherent vertex count: $id"
+}
+foreach ($anchorVertex in $AnchorVertices) {
+    if ($anchorVertex -lt 0 -or $anchorVertex -ge $fixtures[$referenceId].count) { throw 'Anchor outside captured mesh.' }
     $anchorRelative = Vector $skin $skinWorld $anchorVertex
     $control = [single[]]@(0.012,0.008,0.020,1,0,0,0,0.12,-0.007,0.004,0.012,2,1,0,0,0)
     for ($axis=0; $axis -lt 3; $axis++) {
@@ -146,19 +158,19 @@ foreach ($anchorVertex in @(800, 2400, 4000)) {
         Check $finite "finite captured output: $id/$anchorVertex"
     }
     $worlds = @{}
-    foreach ($id in @('000036','000074','000086')) { $worlds[$id] = Attribute $active[$id] 'TEXCOORD' 1 }
+    foreach ($id in $CoherentDrawIds) { $worlds[$id] = Attribute $active[$id] 'TEXCOORD' 1 }
     $maximumError = 0.0
     $oldMismatch = 0.0
     $maximumDisplacement = 0.0
     $movedVertices = 0
-    for ($vertex=0; $vertex -lt $fixtures['000074'].count; $vertex++) {
-        $point = Vector $active['000074'] $worlds['000074'] $vertex
+    for ($vertex=0; $vertex -lt $fixtures[$referenceId].count; $vertex++) {
+        $point = Vector $active[$referenceId] $worlds[$referenceId] $vertex
         $old = Vector $skin $skinWorld $vertex
         $distanceSquared = 0.0
         for ($axis=0; $axis -lt 3; $axis++) { $distanceSquared += [Math]::Pow($point[$axis]-$old[$axis],2) }
         if ($distanceSquared -gt 1e-12) { $movedVertices++ }
         $maximumDisplacement = [Math]::Max($maximumDisplacement,[Math]::Sqrt($distanceSquared))
-        foreach ($id in @('000036','000086')) {
+        foreach ($id in $CoherentDrawIds | Where-Object { $_ -cne $referenceId }) {
             $other = Vector $active[$id] $worlds[$id] $vertex
             for ($axis=0; $axis -lt 3; $axis++) {
                 $maximumError = [Math]::Max($maximumError,[Math]::Abs($point[$axis]-$other[$axis]))
@@ -170,7 +182,7 @@ foreach ($anchorVertex in @(800, 2400, 4000)) {
     Check ($maximumError -le 0.00001) "color/prepass/outline world positions agree: $anchorVertex"
     Check ($oldMismatch -gt 0.001) "previous missing-color defect reproduced: $anchorVertex"
     $metrics += [ordered]@{
-        anchorVertex=$anchorVertex; vertexCount=$fixtures['000074'].count
+        anchorVertex=$anchorVertex; vertexCount=$fixtures[$referenceId].count
         movedVertices=$movedVertices; maximumDisplacement=$maximumDisplacement
         maximumPassError=$maximumError; previousCandidateMismatch=$oldMismatch
     }
@@ -181,7 +193,7 @@ $testPath = Join-Path $output 'test-report.json'
     buildReportSha256=(Get-FileHash -LiteralPath $reportPath).Hash
     inventorySha256=(Get-FileHash -LiteralPath $CaptureInventoryPath).Hash
     replayHostSha256=(Get-FileHash -LiteralPath $hostPath).Hash
-    capturedDraws=@($fixtures.Keys | Sort-Object); syntheticControl=$true
+    capturedDraws=@($fixtures.Keys | Sort-Object); coherentDraws=$CoherentDrawIds; syntheticControl=$true
     sourceResourcesUnmodified=$true; gameStarted=$false; liveInstallationModified=$false
     inGameVerified=$false; limitation='Vertex output replay, not full pixel/material/frame reproduction.'
 } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $testPath -Encoding utf8

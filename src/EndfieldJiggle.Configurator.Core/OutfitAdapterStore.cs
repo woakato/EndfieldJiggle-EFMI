@@ -633,8 +633,10 @@ public sealed class OutfitAdapterStore
             file => ParseRuntimeIni(file.Name, Decode(file.Bytes)), StringComparer.OrdinalIgnoreCase);
         foreach ((string name, RuntimeDocument document) in inis)
         {
-            if (document.NamespaceCount != 1 || document.Namespace != "EndfieldJiggleEFMI")
-                throw new InvalidDataException($"{name} must have exactly one EndfieldJiggleEFMI namespace.");
+            string expectedNamespace = name == RuntimeSettingsStore.OutfitPreparationName
+                ? "AEndfieldJiggleEFMI" : "EndfieldJiggleEFMI";
+            if (document.NamespaceCount != 1 || document.Namespace != expectedNamespace)
+                throw new InvalidDataException($"{name} must have exactly one {expectedNamespace} namespace.");
         }
 
         RuntimeDocument outfits = inis["Outfits.ini"];
@@ -664,7 +666,8 @@ public sealed class OutfitAdapterStore
             .Where(section => Regex.IsMatch(section.Name, @"^ShaderRegexEJ_[0-9a-f]{16}$", RegexOptions.IgnoreCase))
             .ToList();
         Dictionary<int, string> hashesByProgram = [];
-        for (int program = 1; program <= 12; program++)
+        int callbackCount = inis.ContainsKey(RuntimeSettingsStore.OutfitPreparationName) ? 13 : 12;
+        for (int program = 1; program <= callbackCount; program++)
         {
             string commandName = "CommandListBindPass" + program.ToString(System.Globalization.CultureInfo.InvariantCulture);
             RuntimeSection[] bindCommands = inis["Passes.ini"].Sections.Where(section =>
@@ -682,15 +685,16 @@ public sealed class OutfitAdapterStore
         }
         int passCount = inis["Passes.ini"].Sections.Count(section =>
             section.Name.StartsWith("CommandListBindPass", StringComparison.OrdinalIgnoreCase) &&
-            Regex.IsMatch(section.Name, @"^CommandListBindPass(?:[1-9]|1[0-2])$",
+            Regex.IsMatch(section.Name, callbackCount == 13
+                ? @"^CommandListBindPass(?:[1-9]|1[0-3])$" : @"^CommandListBindPass(?:[1-9]|1[0-2])$",
                 RegexOptions.IgnoreCase));
         int expectedExclusions = RuntimeSettingsStore.ReviewedPassCount(inis["Passes.ini"].Text);
-        if (passCount != 12 || Regex.Matches(inis["Passes.ini"].Text,
+        if (passCount != callbackCount || Regex.Matches(inis["Passes.ini"].Text,
                 @"(?m)^\s*if\s+!\$outfit_seen\s*&&\s*INDEX_COUNT\s*>=\s*3\b",
                 RegexOptions.IgnoreCase).Count != expectedExclusions)
             throw new InvalidDataException("Runtime Passes.ini does not have all reviewed outfit exclusions.");
 
-        for (int program = 1; program <= 12; program++)
+        for (int program = 1; program <= callbackCount; program++)
         {
             RuntimeSection[] callbacks = outfits.Sections.Where(section =>
                 section.Name.Equals("ShaderOverrideEJOutfitProgram" + program,
@@ -715,7 +719,9 @@ public sealed class OutfitAdapterStore
 
     private RuntimeFileSnapshot[] ReadRuntimeFiles()
     {
-        string[] names = ["EndfieldJiggle.ini", "Passes.ini", "Outfits.ini"];
+        string[] names = File.Exists(Path.Combine(runtime, RuntimeSettingsStore.OutfitPreparationName))
+            ? ["EndfieldJiggle.ini", "Passes.ini", "Outfits.ini", RuntimeSettingsStore.OutfitPreparationName]
+            : ["EndfieldJiggle.ini", "Passes.ini", "Outfits.ini"];
         return names.Select(name =>
         {
             string path = Path.Combine(runtime, name);

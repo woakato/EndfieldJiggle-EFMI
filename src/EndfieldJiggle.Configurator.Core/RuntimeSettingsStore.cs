@@ -464,7 +464,7 @@ public sealed class RuntimeSettingsStore
     {
         VerifyRuntimeRoot(root);
         Dictionary<string, byte[]> files = new(StringComparer.OrdinalIgnoreCase);
-        foreach (string name in new[] { RuntimeName, PassesName, OutfitsName })
+        foreach (string name in new[] { RuntimeName, PassesName, OutfitsName, OutfitPreparationName })
         {
             string path = Path.Combine(root, name);
             EnsureNoReparsePoints(path);
@@ -485,6 +485,32 @@ public sealed class RuntimeSettingsStore
             throw new FileNotFoundException("目录中未找到 EndfieldJiggle.ini 和 Passes.ini。");
         EnsureNamespace(IniFile.Parse(Decode(File.ReadAllBytes(runtime))), RuntimeName);
         ValidatePasses(Decode(File.ReadAllBytes(passes)));
+        string outfits = Path.Combine(path, OutfitsName);
+        string preparation = Path.Combine(path, OutfitPreparationName);
+        EnsureNoReparsePoints(outfits);
+        EnsureNoReparsePoints(preparation);
+        ValidateOutfitPreparation(File.Exists(outfits) ? File.ReadAllBytes(outfits) : null,
+            File.Exists(preparation) ? File.ReadAllBytes(preparation) : null);
+    }
+
+    internal const string OutfitPreparationName = "OutfitPreparation.ini";
+    private const string OutfitPreparationSha256 =
+        "D0EC67C88CE25120532D10C50232F5A6E11944745B4740B5B38712E5E8C094E1";
+
+    internal static void ValidateOutfitPreparation(byte[]? outfits, byte[]? preparation)
+    {
+        string text = outfits is null ? "" : Decode(outfits);
+        bool usesPreparation = text.Contains("$outfit_slot", StringComparison.Ordinal);
+        if (!usesPreparation && preparation is null) return;
+        if (!usesPreparation || preparation is null || Hash(preparation) != OutfitPreparationSha256)
+            throw new InvalidDataException("换装通用修复文件缺失或不匹配，请使用同一完整包的 Outfits.ini 和 OutfitPreparation.ini。");
+        IniFile ini = IniFile.Parse(text);
+        if (ini.Get("Constants", "global $outfit_slot") != "0" ||
+            ini.Get("ShaderOverrideEJOutfitProgram13", "hash") != "5869b530fc5ca4cf" ||
+            ini.Get("ShaderOverrideEJOutfitProgram13", "$outfit_program") != "13" ||
+            ini.Get("ShaderOverrideEJOutfitProgram13", "post $outfit_program") != "0" ||
+            ini.Get("ShaderOverrideEJOutfitProgram13", "allow_duplicate_hash") != "true")
+            throw new InvalidDataException("换装通用修复的绘制入口不匹配，拒绝改写。");
     }
 
     private static string PatchRuntime(string text, TouchSettings settings)
@@ -530,7 +556,7 @@ public sealed class RuntimeSettingsStore
         IniFile ini = IniFile.Parse(text);
         EnsureNamespace(ini, PassesName);
         bool skinPass = ini.HasSection("CommandListBindPass13");
-        int expected = skinPass ? 13 : 12;
+        int expected = (skinPass ? 13 : 12) + ReviewedReceiverCount(ini, skinPass);
         int knownGates = CountOccurrences(ini.Text, "&& !$ui_mouse &&") +
             CountOccurrences(ini.Text, "&& !($ui_mouse && !$drag) &&");
         if (knownGates != expected ||
@@ -539,6 +565,51 @@ public sealed class RuntimeSettingsStore
                          ini.SectionText("CommandListBindPass13") != ini.SectionText("CommandListBindPass7")))
             throw new InvalidDataException("Passes.ini 的已审核触摸绘制或输入条件不匹配，拒绝改写。");
         return expected;
+    }
+
+    private static int ReviewedReceiverCount(IniFile ini, bool skinPass)
+    {
+        string[] sections = ini.SectionNames.Where(name =>
+            name.StartsWith("ShaderRegexEJ_zzReceiver", StringComparison.OrdinalIgnoreCase) ||
+            name.StartsWith("CommandListReceiveNative", StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (sections.Length == 0) return 0;
+        string[] rules = Enumerable.Range(1, 28).Select(id => $"ShaderRegexEJ_zzReceiver{id:D3}")
+            .Concat(Enumerable.Range(1, 14).Select(id => $"ShaderRegexEJ_zzReceiverGeometry{id:D3}"))
+            .ToArray();
+        string[] expectedSections = rules.SelectMany(name =>
+            new[] { name, name + ".Pattern", name + ".Pattern.Replace", name + ".InsertDeclarations" })
+            .Concat(["CommandListReceiveNative1", "CommandListReceiveNative2"]).ToArray();
+        if (!skinPass || !sections.Order(StringComparer.Ordinal)
+                .SequenceEqual(expectedSections.Order(StringComparer.Ordinal), StringComparer.Ordinal))
+            throw new InvalidDataException("Passes.ini 的通用接收规则不完整或顺序命名不受支持。");
+        foreach (string rule in rules)
+        {
+            if (ini.Get(rule, "shader_model") != "vs_5_0" ||
+                ini.Get(rule, "run") is not ("CommandListReceiveNative1" or "CommandListReceiveNative2") ||
+                ini.Get(rule, "post vs-t119") != "ref ResourceSavedVsControl" ||
+                ini.SectionText(rule + ".Pattern").Length == 0 ||
+                ini.SectionText(rule + ".Pattern.Replace").Length == 0 ||
+                ini.SectionText(rule + ".InsertDeclarations") != "dcl_resource_buffer (float,float,float,float) t119")
+                throw new InvalidDataException("Passes.ini 的通用接收绑定不匹配，拒绝改写。");
+        }
+        foreach (int slot in new[] { 1, 2 })
+        {
+            string expected = string.Join("\n", new[]
+            {
+                "ResourceSavedVsControl = ref vs-t119",
+                "vs-t119 = ResourceZeroControl",
+                "$matched = 1",
+                $"if !$outfit_seen && INDEX_COUNT >= 3 && (DRAW_TYPE == 2 || (DRAW_TYPE == 4 && INSTANCE_COUNT == 1 && FIRST_INSTANCE == 0)) && vs-cb0->Size >= 1312 && vs-cb{slot}->Size >= 65456",
+                "$native_draws = $native_draws + 1",
+                @"if $enabled && $mod_id > 0 && $\EFMIv1\enable_mods && !($ui_mouse && !$drag) && !$ui_navigation && !$cancelled && $complete",
+                "vs-t119 = ResourceControl",
+                "endif",
+                "endif"
+            });
+            if (ini.SectionText("CommandListReceiveNative" + slot) != expected)
+                throw new InvalidDataException("Passes.ini 的通用接收输入条件不匹配，拒绝改写。");
+        }
+        return 2;
     }
 
     private static void ValidateOutfits(string text)
@@ -705,6 +776,7 @@ public sealed class RuntimeSettingsStore
         public string Text { get; }
         public int NamespaceCount => namespaces.Values.Sum();
         public string? NamespaceName => namespaces.Count == 1 ? namespaces.Keys.Single() : null;
+        public IEnumerable<string> SectionNames => sections.Keys;
         public bool HasSection(string name) => sections.ContainsKey(name);
         public string SectionText(string name)
         {

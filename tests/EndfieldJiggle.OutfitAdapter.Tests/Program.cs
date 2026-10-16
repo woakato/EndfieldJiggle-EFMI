@@ -13,8 +13,9 @@ Directory.CreateDirectory(runtime);
 string runtimeFixture = args.Length > 1 ? Path.GetFullPath(args[1]) :
     Path.Combine(repository, "reports", "universal", "build-20261008-174720-527",
         "package", "Mods", "EndfieldJiggleEFMI");
-foreach (string name in new[] { "EndfieldJiggle.ini", "Passes.ini", "Outfits.ini" })
-    File.Copy(Path.Combine(runtimeFixture, name), Path.Combine(runtime, name));
+foreach (string name in new[] { "EndfieldJiggle.ini", "Passes.ini", "Outfits.ini", "OutfitPreparation.ini" })
+    if (File.Exists(Path.Combine(runtimeFixture, name)))
+        File.Copy(Path.Combine(runtimeFixture, name), Path.Combine(runtime, name));
 
 string outfitIni = """
 ; This ordinary note mentions EJ-OUTFIT/1 without being an adapter marker.

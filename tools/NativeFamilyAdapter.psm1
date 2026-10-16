@@ -155,4 +155,4 @@ function New-NativeFamilyAssembly {
     return ($lines -join "`n") + "`n"
 }
 
-Export-ModuleMember -Function Get-NativeFamilySpec, New-NativeFamilyAssembly
+Export-ModuleMember -Function Get-NativeFamilySpec, New-NativeFamilyAssembly, Expand-NativeFamilyFragment

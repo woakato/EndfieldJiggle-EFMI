@@ -1,6 +1,8 @@
 # v0.2.3 安装与升级
 
-本版补齐原皮颜色绘制的触摸适配，保留 EJTouch 换装桥接、配置器与拖放包。游戏仍由 EFMI / XXMI
+本版于 2026-10-16 替换为通用渲染通道修复，同步原皮颜色、深度与描边的触摸形变。
+完整包同时包含换装修复及新版配置器；换装绘制前先识别原生通道，避免部分绘制漏掉位移。
+已下载当天较早的 v0.2.3 时，请重新下载更新后的包。保留 EJTouch 换装桥接、配置器与拖放包。游戏仍由 EFMI / XXMI
 加载触摸 Mod，EXE 用于安装、配置和换装适配，不需要常驻。
 
 ## 选择安装包
@@ -30,11 +32,14 @@ Mods/
     EndfieldJiggle.ini
     Passes.ini
     Outfits.ini
+    OutfitPreparation.ini
     Configurator/EndfieldJiggleConfigurator.exe
 ```
 
 纯 Mod 包结构相同，但没有 `Configurator`。压缩包内部没有第二层触摸 Mod 文件夹。
 旧文件夹名 `EndfieldJiggleEFMI` 也受支持；配置器会识别实际安装位置。
+`Outfits.ini` 与 `OutfitPreparation.ini` 必须使用同一包内的文件。
+已有 `EJ-OUTFIT/1` 包装器不需要为本次修复重新适配。
 
 默认关闭触摸：`Ctrl+Shift+F8` 开关，`Ctrl+Shift+F7` 强制关闭，
 `Ctrl+Shift+F9` 诊断，按住 `Shift+鼠标左键` 拖动。

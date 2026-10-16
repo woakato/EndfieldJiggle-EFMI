@@ -83,8 +83,9 @@ Check(input.ModsDisplay == "no_modifiers VK_F11" && input.ShowOriginal == "ctrl 
 
 string duplicate = Path.Combine(efmi, "Mods", "EndfieldJiggleDuplicate");
 Directory.CreateDirectory(duplicate);
-foreach (string name in new[] { "EndfieldJiggle.ini", "Passes.ini", "Outfits.ini" })
-    File.Copy(Path.Combine(nested, name), Path.Combine(duplicate, name));
+foreach (string name in new[] { "EndfieldJiggle.ini", "Passes.ini", "Outfits.ini", "OutfitPreparation.ini" })
+    if (File.Exists(Path.Combine(nested, name)))
+        File.Copy(Path.Combine(nested, name), Path.Combine(duplicate, name));
 bool rejectedDuplicate = false;
 try { RuntimeLocationLocator.Resolve(efmi); }
 catch (InvalidDataException) { rejectedDuplicate = true; }
