@@ -7,7 +7,8 @@ namespace EndfieldJiggle.Configurator.Core;
 
 public sealed record QaqmLoadedHost(string Id, string Path, IReadOnlyList<string> Variables, string Sha256);
 
-public sealed record QaqmRecoveryHost(string Id, string FileName, IReadOnlyList<string> Variables);
+public sealed record QaqmRecoveryHost(
+    string Id, string FileName, IReadOnlyList<string> Variables, string? SourceHostPath = null);
 
 public sealed record QaqmRecoveryIssue(string Code, string Message);
 
@@ -186,6 +187,34 @@ public sealed class QaqmRecoveryStore
                     continue;
                 }
 
+                string cachePath = Path.Combine(efmiRoot, "qaqm", "cache", $"qaqm_state_{id}.ini");
+                EnsurePathSafe(cachePath);
+                evidenceFiles.Add(cachePath);
+                if (File.Exists(cachePath))
+                {
+                    Dictionary<string, string> cachedDeclarations = ReadCachedDeclarations(cachePath, id, issues);
+                    EnsureCoverage(id, variables, cachedDeclarations.Keys, issues, cachePath);
+                    string includeName = $"EJQaqmInclude_{id}.ini";
+                    string includePath = Path.Combine(outfitRoot, includeName);
+                    EnsurePathSafe(includePath);
+                    if (File.Exists(includePath) || Directory.Exists(includePath))
+                    {
+                        issues.Add(new("existing-state-include",
+                            $"The state include already exists but did not load its host: {includePath}."));
+                        continue;
+                    }
+                    if (!CanLoadFromRecursiveScope(includePath, activeScan.RecursiveScopes))
+                    {
+                        issues.Add(new("state-include-not-loadable",
+                            $"The active recursive include rules exclude the state include: {includePath}."));
+                        continue;
+                    }
+                    if (cachedDeclarations.Count > 0)
+                        missing.Add(new(id, includeName, cachedDeclarations.Keys.OrderBy(value => value,
+                            StringComparer.OrdinalIgnoreCase).ToArray(), cachePath));
+                    continue;
+                }
+
                 string[] markers = FindMarkedSourceFiles(id, activeOutfitInis, issues, evidenceFiles);
                 if (markers.Length != 1)
                 {
@@ -263,7 +292,7 @@ public sealed class QaqmRecoveryStore
             string target = Path.Combine(outfitRoot, host.FileName);
             if (File.Exists(target) || Directory.Exists(target))
                 throw new IOException($"Refusing to overwrite existing selected outfit host: {target}");
-            byte[] content = BuildHost(host.Id, GetDeclarationsForHost(host.Id));
+            byte[] content = BuildRecoveryFile(host);
             string backup = Path.Combine(sessionDirectory, host.FileName + ".bak");
             receiptFiles.Add(new(host.FileName, Hash(content), Path.GetFileName(backup), Hash(content)));
         }
@@ -284,7 +313,7 @@ public sealed class QaqmRecoveryStore
                     throw new IOException($"Refusing to overwrite existing selected outfit host: {target}");
                 QaqmRecoveryHost host = plan.MissingHosts.Single(item =>
                     item.FileName.Equals(file.Name, StringComparison.OrdinalIgnoreCase));
-                byte[] content = BuildHost(host.Id, GetDeclarationsForHost(host.Id));
+                byte[] content = BuildRecoveryFile(host);
                 WriteNewAtomic(backup, content);
                 string temporary = Path.Combine(outfitRoot,
                     "." + file.Name + "." + Guid.NewGuid().ToString("N") + ".tmp");
@@ -467,7 +496,8 @@ public sealed class QaqmRecoveryStore
                 EnsureContained(efmiRoot, work.Path);
                 EnsurePathSafe(work.Path);
                 if (!File.Exists(work.Path))
-                    throw new FileNotFoundException("An active EFMI include is missing.", work.Path);
+                    throw new FileNotFoundException(
+                        $"活动 EFMI include 不存在，实际解析到的路径是：{work.Path}", work.Path);
 
                 string fullPath = Path.GetFullPath(work.Path);
                 if (!parsedFiles.Add(fullPath))
@@ -490,7 +520,8 @@ public sealed class QaqmRecoveryStore
                         section = sectionMatch.Groups["name"].Value.Trim();
                         continue;
                     }
-                    if (section.Length == 0 || line.TrimStart().StartsWith(';') ||
+                    if (!section.StartsWith("Include", StringComparison.OrdinalIgnoreCase) ||
+                        line.TrimStart().StartsWith(';') ||
                         line.TrimStart().StartsWith('#'))
                         continue;
                     Match assignment = Assignment.Match(line);
@@ -519,7 +550,8 @@ public sealed class QaqmRecoveryStore
                         EnsureContained(efmiRoot, directory);
                         EnsurePathSafe(directory);
                         if (!Directory.Exists(directory))
-                            throw new DirectoryNotFoundException($"Recursive include directory is missing: {directory}");
+                            throw new DirectoryNotFoundException(
+                                $"活动 EFMI 递归 include 目录不存在，实际解析到的路径是：{directory}");
                         recursiveDirectories.Add(directory);
                     }
                 }
@@ -763,6 +795,64 @@ public sealed class QaqmRecoveryStore
         return declarations;
     }
 
+    private Dictionary<string, string> ReadCachedDeclarations(
+        string path, string id, List<QaqmRecoveryIssue> issues)
+    {
+        EnsureContained(Path.Combine(efmiRoot, "qaqm", "cache"), path);
+        EnsurePathSafe(path);
+        string text = ReadText(path);
+        MatchCollection namespaces = NamespaceLine.Matches(text);
+        if (namespaces.Count != 1 ||
+            !namespaces[0].Groups["id"].Value.Equals(id, StringComparison.OrdinalIgnoreCase))
+        {
+            issues.Add(new("invalid-cached-host", $"Cached state has an unexpected Bridge namespace: {path}."));
+            return new(StringComparer.OrdinalIgnoreCase);
+        }
+
+        string section = "";
+        foreach (string raw in text.Split('\n'))
+        {
+            string line = raw.Trim();
+            if (line.Length == 0 || line.StartsWith(';'))
+                continue;
+            Match header = SectionLine.Match(line);
+            if (header.Success)
+            {
+                section = header.Groups["name"].Value.Trim();
+                if (section.Equals("Constants", StringComparison.OrdinalIgnoreCase))
+                    continue;
+            }
+            else if (section.Length == 0 && NamespaceLine.IsMatch(line) ||
+                     section.Equals("Constants", StringComparison.OrdinalIgnoreCase) &&
+                     PersistDeclaration.IsMatch(line))
+                continue;
+            issues.Add(new("invalid-cached-host",
+                $"Cached state contains commands other than numeric persisted declarations: {path}."));
+            return new(StringComparer.OrdinalIgnoreCase);
+        }
+        return ParseBackupDeclarations(path, issues);
+    }
+
+    private byte[] BuildRecoveryFile(QaqmRecoveryHost host)
+    {
+        if (host.SourceHostPath is null)
+            return BuildHost(host.Id, GetDeclarationsForHost(host.Id));
+        string expectedPath = Path.Combine(efmiRoot, "qaqm", "cache", $"qaqm_state_{host.Id}.ini");
+        if (!PathsEqual(expectedPath, host.SourceHostPath))
+            throw new InvalidDataException("Cached QAQM state is outside the expected cache location.");
+        List<QaqmRecoveryIssue> issues = [];
+        Dictionary<string, string> declarations = ReadCachedDeclarations(expectedPath, host.Id, issues);
+        if (issues.Count != 0 || !declarations.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase)
+                .IsSupersetOf(host.Variables))
+            throw new InvalidDataException("Cached QAQM state changed before recovery.");
+        string relative = Path.GetRelativePath(outfitRoot, expectedPath);
+        if (relative.IndexOfAny([';', '"', '\r', '\n']) >= 0)
+            throw new InvalidDataException("Cached QAQM state path cannot be represented in an INI include.");
+        return new UTF8Encoding(false).GetBytes(
+            $"; EJ-QAQM-INCLUDE/1: reuse the existing state without copying declarations.\n" +
+            $"[IncludeEJQaqmState_{host.Id}]\ninclude = {relative}\n");
+    }
+
     private static byte[] BuildHost(string id, IReadOnlyDictionary<string, string> declarations)
     {
         StringBuilder text = new();
@@ -878,7 +968,8 @@ public sealed class QaqmRecoveryStore
 
     private static void ValidateHostFileName(string name)
     {
-        if (!Regex.IsMatch(name, @"^qaqm_state_[0-9a-f]{12}\.ini$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        if (!Regex.IsMatch(name, @"^(?:qaqm_state_|EJQaqmInclude_)[0-9a-f]{12}\.ini$",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
             throw new InvalidDataException("Receipt contains an invalid QAQM host filename.");
     }
 

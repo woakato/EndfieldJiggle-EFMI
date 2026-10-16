@@ -3,6 +3,14 @@ using System.Security.Cryptography;
 using System.Reflection;
 using EndfieldJiggle.Configurator.Core;
 
+if (args is ["--inspect", string efmiDirectory, string outfitDirectory])
+{
+    QaqmRecoveryPlan inspection = new QaqmRecoveryStore(outfitDirectory, efmiDirectory).Inspect();
+    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(inspection,
+        new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+    return;
+}
+
 string repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
     "..", "..", "..", "..", "..", ".."));
 string root = Path.Combine(repositoryRoot, "reports", "qaqm-recovery-tests",
@@ -130,6 +138,77 @@ try
           plan.LoadedHosts.Any(host => host.Id == id &&
               host.Path.Equals(nestedHostPath, StringComparison.OrdinalIgnoreCase)),
         "nested recursive include scopes are traversed to their active host");
+
+    (efmi, outfit) = Fixture("disconnected-cache");
+    WriteRecoveryEvidence(outfit, id);
+    string cache = Path.Combine(efmi, "qaqm", "cache");
+    Directory.CreateDirectory(cache);
+    string cachedHost = Path.Combine(cache, $"qaqm_state_{id}.ini");
+    string cachedText = $"namespace = QAQM\\Persist\\Bridge_{id}\n[Constants]\nglobal persist $size = 1.25\n";
+    File.WriteAllText(cachedHost, cachedText);
+    string originalSource = File.ReadAllText(Path.Combine(outfit, "body.ini"));
+    store = new(outfit, efmi);
+    plan = store.Inspect();
+    Check(plan.CanApply && plan.MissingHosts.Count == 1 && plan.MissingHosts[0].SourceHostPath == cachedHost,
+        "disconnected existing QAQM cache is reconnected instead of reset to backup defaults");
+    store.Apply(plan.Fingerprint, requireStopped: false);
+    string stateInclude = Path.Combine(outfit, $"EJQaqmInclude_{id}.ini");
+    Check(File.Exists(stateInclude) && !File.Exists(Path.Combine(outfit, $"qaqm_state_{id}.ini")) &&
+          File.ReadAllText(cachedHost) == cachedText &&
+          File.ReadAllText(Path.Combine(outfit, "body.ini")) == originalSource,
+        "reconnection only adds an include and preserves existing cache and outfit bytes");
+    Check(store.Inspect() is { MissingHosts.Count: 0, Issues.Count: 0 },
+        "the reconnected external host is now active");
+    File.WriteAllText(Path.Combine(efmi, "qaqm", "qaqm_includer.ini"),
+        $"[IncludeState]\ninclude = cache\\qaqm_state_{id}.ini\n");
+    File.WriteAllText(Path.Combine(efmi, "d3dx.ini"),
+        "[Include]\ninclude = qaqm\\qaqm_includer.ini\ninclude_recursive = Mods\nexclude_recursive = DISABLED*\n");
+    Check(store.Inspect() is { MissingHosts.Count: 0, Issues.Count: 0 },
+        "restoring QAQM's global include does not duplicate the same cached host");
+    store.Restore(requireStopped: false);
+    Check(!File.Exists(stateInclude) && File.ReadAllText(cachedHost) == cachedText &&
+          store.Inspect() is { MissingHosts.Count: 0, Issues.Count: 0 },
+        "undo only removes the program's include, retaining QAQM's restored loading path");
+
+    (efmi, outfit) = Fixture("cache-without-backup");
+    WriteRecoveryEvidence(outfit, id);
+    File.Delete(Path.Combine(outfit, "body.ini.qaqm-persistbak"));
+    cache = Path.Combine(efmi, "qaqm", "cache");
+    Directory.CreateDirectory(cache);
+    cachedHost = Path.Combine(cache, $"qaqm_state_{id}.ini");
+    File.WriteAllText(cachedHost, cachedText);
+    store = new(outfit, efmi);
+    plan = store.Inspect();
+    Check(plan.CanApply && plan.MissingHosts[0].SourceHostPath == cachedHost,
+        "an existing complete state cache can reconnect without inventing backup defaults");
+    File.AppendAllText(cachedHost, "; changed after inspection\n");
+    Reject(() => store.Apply(plan.Fingerprint, requireStopped: false),
+        "cached host changes invalidate the recovery plan");
+
+    (efmi, outfit) = Fixture("invalid-cache");
+    WriteRecoveryEvidence(outfit, id);
+    cache = Path.Combine(efmi, "qaqm", "cache");
+    Directory.CreateDirectory(cache);
+    cachedHost = Path.Combine(cache, $"qaqm_state_{id}.ini");
+    File.WriteAllText(cachedHost, cachedText + "[Present]\nrun = CommandListUnexpected\n");
+    plan = new QaqmRecoveryStore(outfit, efmi).Inspect();
+    Check(!plan.CanApply && plan.Issues.Any(issue => issue.Code == "invalid-cached-host"),
+        "a cached file containing rendering commands is not silently activated");
+    File.WriteAllText(cachedHost, cachedText.Replace($"Bridge_{id}", "Bridge_ffffffffffff"));
+    plan = new QaqmRecoveryStore(outfit, efmi).Inspect();
+    Check(!plan.CanApply && plan.Issues.Any(issue => issue.Code == "invalid-cached-host"),
+        "a cache with the wrong Bridge namespace blocks recovery");
+    File.WriteAllText(cachedHost, cachedText.Replace("$size", "$wrong"));
+    plan = new QaqmRecoveryStore(outfit, efmi).Inspect();
+    Check(!plan.CanApply && plan.Issues.Any(issue => issue.Code == "uncovered-reference"),
+        "an incomplete cache does not hide unresolved variables");
+
+    (efmi, outfit) = Fixture("include-sections-only");
+    WriteRecoveryEvidence(outfit, id);
+    File.AppendAllText(Path.Combine(outfit, "body.ini"),
+        "[ResourceExample]\ninclude = not-an-ini.hlsl\n");
+    plan = new QaqmRecoveryStore(outfit, efmi).Inspect();
+    Check(plan.CanApply, "include keys outside Include sections are not mistaken for active INI dependencies");
 
     (efmi, outfit) = Fixture("duplicate-host");
     WriteRecoveryEvidence(outfit, id);

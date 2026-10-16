@@ -7,12 +7,18 @@ Import-Module (Join-Path $PSScriptRoot 'OutfitRuntime.Common.psm1') -Force
 $archive = [IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $ModZipPath).Path)
 try {
     $texts = @{}
+    $roots = @($archive.Entries | Where-Object {
+        $_.FullName -ceq 'EndfieldJiggle.ini' -or $_.FullName.EndsWith('/EndfieldJiggle.ini')
+    })
+    if ($roots.Count -ne 1) { throw 'Release must contain one runtime root.' }
+    $prefix = $roots[0].FullName.Substring(0, $roots[0].FullName.Length - 'EndfieldJiggle.ini'.Length)
     $files = @($archive.Entries | Where-Object {
-        $_.FullName -match '/Mods/EndfieldJiggleEFMI/(?!Configurator/)' -and ! $_.FullName.EndsWith('/')
+        $_.FullName.StartsWith($prefix, [StringComparison]::Ordinal) -and
+        $_.FullName.Substring($prefix.Length) -match '^(EndfieldJiggle\.ini|Passes\.ini|Outfits\.ini|JiggleForge-LICENSE|shaders/[^/]+\.(hlsl|bin))$'
     })
     if ($files.Count -ne 14) { throw 'Release must include all 14 native/outfit runtime files.' }
     foreach ($name in @('EndfieldJiggle.ini','Passes.ini','Outfits.ini')) {
-        $entry = @($files | Where-Object { $_.FullName.EndsWith('/' + $name) })
+        $entry = @($files | Where-Object { $_.FullName -ceq ($prefix + $name) })
         if ($entry.Count -ne 1) { throw "Missing/duplicate release INI: $name" }
         $reader = [IO.StreamReader]::new($entry[0].Open())
         try { $texts[$name]=$reader.ReadToEnd() } finally { $reader.Dispose() }

@@ -49,7 +49,10 @@ public sealed class InstallablePackage
             throw new InvalidOperationException("此配置器没有内置运行时，请使用完整安装包。");
         string efmi = ResolveEfmiDirectory(selectedDirectory);
         EnsureUnlinked(efmi);
-        string runtime = Path.Combine(efmi, "Mods", "EndfieldJiggleEFMI");
+        RuntimeLocation location = RuntimeLocationLocator.Resolve(efmi);
+        if (location.Nested)
+            throw new InvalidDataException("安装升级前请将触摸 Mod 整理为 Mods 的直接子目录。");
+        string runtime = location.RuntimeDirectory ?? Path.Combine(efmi, "Mods", "EndfieldJiggleEFMI");
         EnsureUnlinked(runtime);
         bool upgrade = Directory.Exists(runtime) && Directory.EnumerateFileSystemEntries(runtime).Any();
         if (upgrade)
@@ -139,7 +142,7 @@ public sealed class InstallablePackage
                 foreach (string name in files.Keys.Where(name => name.EndsWith(".ini", StringComparison.Ordinal)))
                     written[name] = Hash(File.ReadAllBytes(Inside(current.RuntimeDirectory, name)));
             }
-            InstallationReceipt receipt = new(1, "v0.2.2", current.RuntimeDirectory, session,
+            InstallationReceipt receipt = new(1, "v0.2.3", current.RuntimeDirectory, session,
                 files.Keys.Select(name => new InstalledFile(name,
                     Hash(File.ReadAllBytes(Inside(current.RuntimeDirectory, name))))).ToArray());
             byte[] receiptBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(receipt, JsonOptions));
@@ -208,7 +211,10 @@ public sealed class InstallablePackage
     {
         if (requireStopped) EnsureStopped();
         string efmi = ResolveEfmiDirectory(runtime);
-        runtime = Path.Combine(efmi, "Mods", "EndfieldJiggleEFMI");
+        runtime = Path.GetFullPath(runtime);
+        if (!string.Equals(Path.GetDirectoryName(runtime), Path.Combine(efmi, "Mods"),
+                StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("恢复目标必须是 Mods 中实际安装的触摸目录。");
         EnsureUnlinked(runtime);
         EnsureKnownActiveInis(runtime);
         string receiptPath = Inside(runtime, ReceiptName);
@@ -362,14 +368,21 @@ public sealed class InstallablePackage
     {
         Dictionary<string, byte[]> files = new(StringComparer.OrdinalIgnoreCase);
         using ZipArchive archive = new(new MemoryStream(bytes, writable: false), ZipArchiveMode.Read);
-        const string marker = "/Mods/EndfieldJiggleEFMI/";
+        ZipArchiveEntry[] roots = archive.Entries.Where(entry =>
+            entry.FullName == "EndfieldJiggle.ini" ||
+            entry.FullName.EndsWith("/EndfieldJiggle.ini", StringComparison.Ordinal)).ToArray();
+        if (roots.Length != 1)
+            throw new InvalidDataException("内置运行时必须只有一个 EndfieldJiggle.ini。");
+        string prefix = roots[0].FullName[..^"EndfieldJiggle.ini".Length];
+        _ = Inside(Path.GetTempPath(), prefix + "EndfieldJiggle.ini");
         long total = 0;
         foreach (ZipArchiveEntry entry in archive.Entries)
         {
-            int offset = entry.FullName.IndexOf(marker, StringComparison.Ordinal);
-            if (offset < 0 || entry.FullName.EndsWith('/')) continue;
-            string name = entry.FullName[(offset + marker.Length)..].Replace('\\', '/');
+            if (!entry.FullName.StartsWith(prefix, StringComparison.Ordinal) || entry.FullName.EndsWith('/')) continue;
+            string name = entry.FullName[prefix.Length..].Replace('\\', '/');
             _ = Inside(Path.GetTempPath(), name);
+            if (name is "LICENSE" or "THIRD-PARTY-NOTICES.md" or "DISCLAIMER.md" or
+                "INSTALL-zh-CN.md" or "OUTFIT-COMPATIBILITY.md") continue;
             bool known = IsOwnedPayloadName(name) && !name.StartsWith("Configurator/", StringComparison.Ordinal);
             if (!known || entry.Length > 16 * 1024 * 1024 || (total += entry.Length) > 32 * 1024 * 1024)
                 throw new InvalidDataException("内置运行时包含未知或过大的文件：" + name);

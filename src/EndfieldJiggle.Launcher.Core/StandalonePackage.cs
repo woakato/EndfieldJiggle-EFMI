@@ -57,6 +57,7 @@ public sealed class StandalonePackage
             if (!File.Exists(Path.Combine(Root, relative)))
                 throw new FileNotFoundException("独立包缺少文件：" + relative);
         }
+        ShaderCachePathGuard.Validate(EfmiDirectory);
         return manifest;
     }
 }

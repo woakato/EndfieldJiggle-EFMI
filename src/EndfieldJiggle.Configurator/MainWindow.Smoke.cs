@@ -40,9 +40,10 @@ public partial class MainWindow
         File.WriteAllText(source + ".qaqm-persistbak",
             "namespace = Example\n[Constants]\nglobal persist $variant = 1\n");
         await SelectOutfitAsync(outfit);
-        QaqmRecoveryPlan plan = await InspectStateAsync();
-        if (!plan.CanApply || stateStore is null) throw new InvalidDataException("Sample state recovery not available.");
-        stateStore.Apply(plan.Fingerprint, requireStopped: false);
+        QaqmRecoveryPlan initialState = await InspectStateAsync();
+        if (!initialState.CanApply || stateStore is null)
+            throw new InvalidDataException("Sample state recovery not available.");
+        stateStore.Apply(initialState.Fingerprint, requireStopped: false);
         QaqmRecoveryPlan recovered = await InspectStateAsync();
         if (recovered.Issues.Count != 0 || recovered.MissingHosts.Count != 0)
             throw new InvalidDataException("Sample recovery not recognized.");

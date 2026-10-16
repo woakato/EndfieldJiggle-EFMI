@@ -4,14 +4,30 @@ param(
     [Parameter(Mandatory)][string]$DropInZipPath,
     [Parameter(Mandatory)][string]$DotnetPath,
     [string]$LoaderHostPath,
-    [string]$OriginalShaderDirectory
+    [string]$OriginalShaderDirectory,
+    [AllowEmptyString()][string]$DropInRuntimePrefix = 'EndfieldJiggleEFMI/'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 Import-Module (Join-Path $PSScriptRoot 'Universal.Common.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'LoaderDiagnostics.psm1') -Force
-$product = Assert-UniversalPath (Join-Path $root 'reports\standalone') $PackageDirectory
+$product = (Resolve-Path -LiteralPath $PackageDirectory).Path
+$manifest = Get-Content -LiteralPath (Join-Path $product 'standalone-manifest.json') -Raw | ConvertFrom-Json
+if ($manifest.launchWorkflow.mode -ne 'manual-official-launcher' -or
+    $manifest.launchWorkflow.startsGameExecutable -ne $false -or
+    $manifest.launchWorkflow.processTimeoutSeconds -ne 300) {
+    throw 'Standalone must use bounded manual official-launcher startup.'
+}
+$sessionSource = [IO.File]::ReadAllText((Join-Path $root 'src\EndfieldJiggle.Launcher.Core\LaunchSession.cs'))
+if ($sessionSource -match 'Process\.Start|\.Kill\(|-force-d3d11|CreateElevatedLauncherStartInfo|\.MainModule|\.Modules\b') {
+    throw 'Manual launch core must not directly start, terminate or elevate the game.'
+}
+$querySource = [IO.File]::ReadAllText((Join-Path $root 'src\EndfieldJiggle.Launcher.Core\ProcessImagePath.cs'))
+if ($querySource -notmatch 'QueryFullProcessImageNameW' -or $querySource -notmatch 'QueryLimitedInformation = 0x1000' -or
+    $querySource -match 'ReadProcessMemory|WriteProcessMemory|EnumProcessModules|SeDebugPrivilege|\.MainModule') {
+    throw 'Process metadata must use limited-query access without module enumeration or memory reads.'
+}
 $output = Join-Path $root ('reports\standalone\test-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 New-Item -ItemType Directory -Path $output -Force | Out-Null
 & $DotnetPath run --project (Join-Path $root 'tests\EndfieldJiggle.Launcher.Tests\EndfieldJiggle.Launcher.Tests.csproj') `
@@ -22,7 +38,7 @@ $archive = [IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $DropIn
 $compared = 0
 try {
     foreach ($entry in $archive.Entries) {
-        $prefix = 'EndfieldJiggleEFMI/'
+        $prefix = $DropInRuntimePrefix
         if (!$entry.FullName.StartsWith($prefix,[StringComparison]::Ordinal) -or $entry.FullName.EndsWith('/')) { continue }
         $relative = $entry.FullName.Substring($prefix.Length)
         $path = Assert-UniversalPath $runtime (Join-Path $runtime $relative)

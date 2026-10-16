@@ -11,6 +11,7 @@
  · [源码与历史版本](https://github.com/woakato/EndfieldJiggle-EFMI/releases)
  · [使用说明](docs/USAGE.md)
  · [独立版说明](docs/STANDALONE.md)
+ · [诊断版独立包](docs/DIAGNOSTIC-STANDALONE.md)
  · [可选配置器](docs/CONFIGURATOR.md)
  · [换装兼容](docs/OUTFIT-COMPATIBILITY.md)
  · [免责声明](DISCLAIMER.md)
@@ -19,10 +20,13 @@
 > 已安装 XXMI / EFMI：下载拖放包。未安装 XXMI Launcher：下载独立便携包。
 > 源码归档不是游戏安装包。
 
-v0.2.2 保留 v0.2.1 的换装桥接修复，补回 Mod 库、预览与逐项绘制选择，
-新增快捷键录入、冲突检查、参数预设和配置导入导出。改键与改参可保存后在游戏内
-重载；首次安装或升级运行时仍需重启。隔离测试不代替游戏实机复验。
+v0.2.3 补齐当前游戏原皮遗漏的颜色绘制适配，处理触摸时皮肤与描边变形不同步造成的黑面。
+纯 Mod 和 drop-in 包采用直接包含 `shaders` 与运行时 INI 的结构，配置器支持带版本号的
+文件夹及新增绘制。保留 Mod 库、改键、参数预设、配置导入导出与原有换装桥接。
+改键与改参可保存后在游戏内重载；首次安装或升级运行时仍需重启。
 独立便携包内置官方 EFMI、配套渲染库与同版触摸插件，提供游戏路径选择及启动入口。
+2026-10-15 手动启动修订不再直接运行游戏 EXE：先在本包开启等待，再通过官方游戏启动器
+以 DirectX 11 开始游戏。此启动流程尚待实机复验，不绕过安全校验。
 
 ## 项目特点
 
@@ -46,21 +50,24 @@ v0.2.2 保留 v0.2.1 的换装桥接修复，补回 Mod 库、预览与逐项绘
 
 | 安装情况 | 下载附件 | 使用方式 |
 | --- | --- | --- |
-| 已有 XXMI / EFMI | `EndfieldJiggleEFMI-v0.2.2-drop-in-win64.zip` | 放入现有 EFMI 的 `Mods`，含可选配置器 |
-| 没有 XXMI Launcher | `EndfieldJiggleEFMI-v0.2.2-standalone-win64.zip` | 整包解压，打开 `EndfieldJiggleLauncher.exe` |
-| 已有 EFMI，只需 Mod | `EndfieldJiggleEFMI-v0.2.2-win64.zip` | 仅触摸 Mod，不含程序 |
+| 已有 XXMI / EFMI | `EndfieldJiggleEFMI-v0.2.3-drop-in-win64.zip` | 解压为 `Mods` 下一个目录，含可选配置器 |
+| 没有 XXMI Launcher | `EndfieldJiggleEFMI-v0.2.3-standalone-win64.zip` | 整包解压，打开 `EndfieldJiggleLauncher.exe` |
+| 已有 EFMI，只需 Mod | `EndfieldJiggleEFMI-v0.2.3-win64.zip` | 仅触摸 Mod，不含程序 |
 
 独立包包含官方 EFMI 1.4.8、XXMI 渲染库 1.2.2、触摸 Mod 与配置器，不需另外安装
-XXMI Launcher 或 .NET。选择游戏本体 `Endfield.exe` 后启动，后续可双击 `Start.cmd`。
-路径栏提供“选择游戏”按钮；游戏需要管理员权限时由 Windows 授权后继续启动。
+XXMI Launcher 或 .NET。选择游戏本体 `Endfield.exe`，点击“等待官方启动”，
+再到官方游戏启动器选择 DirectX 11 并开始游戏。后续双击 `Start.cmd` 也只开始等待，
+不会直接启动游戏。路径栏用于核对目标；权限错误会提示，不自动提权。
 换装放入独立包自己的 `EFMI/Mods`。完整步骤见[独立版说明](docs/STANDALONE.md)。
 独立版仍使用 EFMI / XXMI 渲染库；原有 XXMI 安装与独立包分别保存 Mod 和配置。
 
 GitHub 自动提供的 `Source code` 归档是源代码，不是 Mod 包；不要用它代替 Release 附件。
 以下拖放步骤适用于已有 XXMI / EFMI 的用户。
 
-安装前退出游戏和 XXMI。拖放版解压后，将 `EndfieldJiggleEFMI` 整个文件夹放入
-EFMI 的 `Mods` 目录。不打开 EXE 也可使用。需要管理 Mod、修改键位或参数时，
+安装前退出游戏和 XXMI。纯 Mod / 拖放 ZIP 内直接包含 `shaders`、`EndfieldJiggle.ini`、
+`Passes.ini`、`Outfits.ini`，请解压到 `Mods` 下一个独立目录，例如
+`Mods/EndfieldJiggleEFMI-v0.2.3-drop-in-win64/shaders`；也可命名为 `EndfieldJiggleEFMI`。
+不需要再套 `Mods/EndfieldJiggleEFMI`。不打开 EXE 也可使用。需要管理 Mod、修改键位或参数时，
 再打开其中的 `Configurator/EndfieldJiggleConfigurator.exe`。
 升级前先将旧目录备份到 `Mods` 之外，不要混合版本。
 不要覆盖注入 DLL、全局 `ShaderFixes`、`d3dx.ini` 或其他 Mod。
@@ -95,8 +102,11 @@ EFMI 的 `Mods` 目录。不打开 EXE 也可使用。需要管理 Mod、修改�
 已有 EJTouch 适配包可调用本版恢复的换装桥接。普通换装仍需要绘制包装器。
 QAQM 状态文件缺失与桥接缺失是独立问题，详见[换装兼容说明](docs/OUTFIT-COMPATIBILITY.md)。
 
-程序的“换装适配”页可分析并在原目录包装支持的索引绘制，支持撤销。
-不复制换装模型，不新建第二份换装 Mod；原目录 INI 会修改并保存备份。
+程序的“换装适配”页可分析并在用户明确选择的源目录包装支持的索引绘制，支持撤销。
+不复制换装模型，不新建第二份换装 Mod；源目录 INI 会修改并保存备份。
+源目录可以来自任意 Mod 管理器的 profile、下载目录或暂存目录，不要求配置器识别管理器品牌。
+适配完成后需让原管理器重新部署或刷新该 Mod；只有当前 EFMI/Mods 加载树中的目录才能使用
+本程序的 QAQM 状态检查与恢复。
 可逐项选择支持的绘制；调整已经适配的选择时先恢复原换装，再重新选择与适配。
 适配完成后可在游戏内按 F10 重载，具体限制见[换装兼容说明](docs/OUTFIT-COMPATIBILITY.md)。
 自定义顶点着色器、动态绘制范围等不受支持，程序会报告，不能承诺任意换装兼容。
@@ -113,8 +123,8 @@ QAQM 状态文件缺失与桥接缺失是独立问题，详见[换装兼容说�
 **独立版是不是完全不用 EFMI？**
 
 独立版内置 EFMI 和配套渲染库，不要求预先安装 XXMI Launcher。
-它使用同一版触摸 Mod，并增加本项目自己的便携启动入口。直接从官方游戏启动器
-启动游戏不会加载这个包；更新游戏后，从独立启动器启动。
+它使用同一版触摸 Mod，并增加本项目自己的便携加载入口。先点击本包的“等待官方启动”，
+再由官方游戏启动器以 DirectX 11 开始游戏。没有开启等待时不会自动加载本包。
 
 **是不是每个角色都需要单独导出资源？**
 

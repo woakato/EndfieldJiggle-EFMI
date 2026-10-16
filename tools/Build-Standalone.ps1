@@ -4,17 +4,20 @@ param(
     [Parameter(Mandatory)][string]$EfmiZipPath,
     [Parameter(Mandatory)][string]$LibrariesZipPath,
     [Parameter(Mandatory)][string]$DotnetPath,
+    [string]$OutputDirectory,
     [string]$RuntimeLicenseDirectory,
-    [string]$NoticeCacheDirectory
+    [string]$NoticeCacheDirectory,
+    [ValidatePattern('^v\d+\.\d+\.\d+$')][string]$Version = 'v0.2.2',
+    [ValidatePattern('^[0-9A-Fa-f]{64}$')][string]$ExpectedDropInSha256 = '88433A0402C9E85C1D3790632C83D020DCF4699A90A7358D11E47B9789FD57E3',
+    [AllowEmptyString()][string]$DropInRuntimePrefix = 'EndfieldJiggleEFMI/'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 Import-Module (Join-Path $PSScriptRoot 'Universal.Common.psm1') -Force
-$version = 'v0.2.2'
 $encoding = [Text.UTF8Encoding]::new($false)
 $inputs = @(
-    @{ path=$DropInZipPath; hash='88433A0402C9E85C1D3790632C83D020DCF4699A90A7358D11E47B9789FD57E3' },
+    @{ path=$DropInZipPath; hash=$ExpectedDropInSha256.ToUpperInvariant() },
     @{ path=$EfmiZipPath; hash='1B33A7D92DBA01189E8B35C01048C2EACA780F9AD84C7C43F049EC5ED2C7B33F' },
     @{ path=$LibrariesZipPath; hash='13034531D4855E05273D9FBAF18539EC390432950EBD5986A115E5D3E5D8E275' }
 )
@@ -32,10 +35,10 @@ foreach ($name in @('LICENSE.txt','ThirdPartyNotices.txt')) {
         throw "Missing .NET runtime notice: $name"
     }
 }
-$build = Join-Path $root ('reports\standalone\build-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
-Assert-UniversalPath $root $build | Out-Null
+$build = if ($OutputDirectory) { [IO.Path]::GetFullPath($OutputDirectory) }
+    else { Join-Path $root ('reports\standalone\build-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff')) }
 if (Test-Path -LiteralPath $build) { throw 'Preserve existing standalone build.' }
-$product = Join-Path $build "package\EndfieldJiggleEFMI-$version-standalone"
+$product = Join-Path $build 'package\EndfieldJiggle'
 $efmi = Join-Path $product 'EFMI'
 New-Item -ItemType Directory -Path $efmi -Force | Out-Null
 
@@ -59,7 +62,7 @@ function Expand-CheckedArchive([string]$ZipPath, [string]$Destination, [string]$
 
 Expand-CheckedArchive $inputs[1].path $efmi
 Expand-CheckedArchive $inputs[2].path $efmi
-Expand-CheckedArchive $inputs[0].path (Join-Path $efmi 'Mods\EndfieldJiggleEFMI') 'EndfieldJiggleEFMI/'
+Expand-CheckedArchive $inputs[0].path (Join-Path $efmi 'Mods\EndfieldJiggleEFMI') $DropInRuntimePrefix
 $sections = @(Read-OrderedIniSections ([IO.File]::ReadAllText((Join-Path $efmi 'd3dx.ini'))))
 function Set-BundleEntry([string]$Section, [string]$Key, [string]$Value) {
     $matches = @($sections | Where-Object name -IEQ $Section)
@@ -90,7 +93,8 @@ $publish = Join-Path $build 'publish'
 & $DotnetPath publish (Join-Path $root 'src\EndfieldJiggle.Launcher\EndfieldJiggle.Launcher.csproj') `
     --configuration Release --runtime win-x64 --self-contained true --nologo -o $publish `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
-    -p:EnableCompressionInSingleFile=true -p:DebugType=None -p:DebugSymbols=false
+    -p:EnableCompressionInSingleFile=true -p:DebugType=None -p:DebugSymbols=false `
+    "-p:Version=$($Version.TrimStart('v'))"
 if ($LASTEXITCODE -ne 0) { throw 'Standalone launcher publish failed.' }
 Copy-Item -LiteralPath (Join-Path $publish 'EndfieldJiggleLauncher.exe') -Destination $product
 Copy-Item -LiteralPath (Join-Path $RuntimeLicenseDirectory 'LICENSE.txt') -Destination (Join-Path $product 'DOTNET-LICENSE.txt')
@@ -98,6 +102,7 @@ Copy-Item -LiteralPath (Join-Path $RuntimeLicenseDirectory 'ThirdPartyNotices.tx
     -Destination (Join-Path $product 'DOTNET-THIRD-PARTY-NOTICES.txt')
 foreach ($pair in @(
     @('docs\STANDALONE.md','INSTALL-STANDALONE-zh-CN.md'),
+    @('docs\DIAGNOSTIC-STANDALONE.md','DIAGNOSTIC-STANDALONE.md'),
     @('docs\OUTFIT-COMPATIBILITY.md','OUTFIT-COMPATIBILITY.md'),
     @('docs\V022-STANDALONE-VALIDATION.md','VALIDATION-STANDALONE-zh-CN.md'),
     @('DISCLAIMER.md','DISCLAIMER.md'), @('LICENSE','LICENSE'),
@@ -127,6 +132,13 @@ foreach ($notice in $upstreamNotices) {
 }
 $manifest = [ordered]@{
     schema=1; version=$version; efmiVersion='1.4.8'; librariesVersion='1.2.2'
+    launchWorkflow=[ordered]@{
+        mode='manual-official-launcher'; revision=3; startsGameExecutable=$false
+        processImageQuery='QueryFullProcessImageNameW'; processAccess='PROCESS_QUERY_LIMITED_INFORMATION'
+        shaderCachePathPreflight=$true; maximumShaderCachePathLength=259
+        injection='unchanged-upstream-direct'; processTimeoutSeconds=300
+        directX11='Select DirectX 11 in the official launcher; this bundle does not supply game launch arguments.'
+    }
     efmiCommit='3d40c54ba86fdfd0e26d8ccbbd3848632f063b06'
     librariesCommit='a7847eae82aaac32175c9a7d199673d5c9323bcd'
     libraries=@(foreach ($name in @('3dmloader.dll','d3d11.dll','d3dcompiler_47.dll')) {
@@ -169,7 +181,8 @@ if (!$process.WaitForExit(60000)) {
 }
 if ($process.ExitCode -ne 0) { throw "Standalone smoke failed; check $smokeOutput." }
 $smoke = Get-Content -LiteralPath (Join-Path $smokeOutput 'smoke-report.json') -Raw | ConvertFrom-Json
-if (!$smoke.officialExportsResolved -or $smoke.gameStarted -or $smoke.injectorCalled -or $smoke.liveInstallationModified) {
+if (!$smoke.officialExportsResolved -or $smoke.gameStarted -or $smoke.injectorCalled -or $smoke.liveInstallationModified -or
+    $smoke.launchMode -ne 'manual-official-launcher' -or $smoke.startsGameExecutable -ne $false) {
     throw 'Standalone smoke violated its isolated boundary.'
 }
 $files = @(Get-ChildItem -LiteralPath $product -Recurse -File | ForEach-Object {
@@ -183,6 +196,7 @@ $zip = Join-Path $build "EndfieldJiggleEFMI-$version-standalone-win64.zip"
     [IO.Compression.CompressionLevel]::Optimal, $false)
 $report = [ordered]@{
     schema=1; version=$version; packageDirectory=$product; archive=$zip
+    launchWorkflow=$manifest.launchWorkflow
     archiveSha256=(Get-FileHash -LiteralPath $zip).Hash.ToLowerInvariant()
     files=$files; dependencies=$manifest; originalModAndConfiguratorUnchanged=$true
     smokeReport=(Join-Path $smokeOutput 'smoke-report.json')

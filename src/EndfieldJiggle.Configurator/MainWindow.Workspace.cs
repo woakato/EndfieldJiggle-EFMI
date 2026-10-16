@@ -316,7 +316,7 @@ public partial class MainWindow
             if (dialog.ShowDialog(this) != true) return;
             string json = JsonSerializer.Serialize(new
             {
-                schema = 1, version = "0.2.2", runtime = store?.Root, efmi = EfmiPathBox.Text,
+                schema = 1, version = "0.2.3", runtime = store?.Root, efmi = EfmiPathBox.Text,
                 reloadBinding, efmiInput = EfmiInputDiagnostics.Read(EfmiPathBox.Text),
                 pendingSettings = ReadControls(), savedSettings = snapshot?.Settings,
                 conflicts, outfit = outfitStore?.Root, outfitSummary = OutfitSummaryText.Text,

@@ -2,7 +2,8 @@
 param(
     [string]$DotnetPath,
     [string]$RuntimeLicenseDirectory,
-    [string]$RuntimeZipPath
+    [string]$RuntimeZipPath,
+    [ValidatePattern('^v\d+\.\d+\.\d+$')][string]$Version = 'v0.2.3'
 )
 
 Set-StrictMode -Version Latest
@@ -59,7 +60,8 @@ if ($RuntimeZipPath) {
 & $DotnetPath publish $project --configuration Release --runtime win-x64 `
     --self-contained true --nologo -o $publish `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
-    -p:EnableCompressionInSingleFile=true -p:DebugType=None -p:DebugSymbols=false @resourceArguments
+    -p:EnableCompressionInSingleFile=true -p:DebugType=None -p:DebugSymbols=false `
+    "-p:Version=$($Version.TrimStart('v'))" @resourceArguments
 if ($LASTEXITCODE -ne 0) {
     throw 'Configurator publish failed.'
 }
@@ -80,7 +82,7 @@ $exeHash = (Get-FileHash -LiteralPath (Join-Path $package $entryPoint) -Algorith
 [IO.File]::WriteAllText((Join-Path $package 'SHA256SUMS.txt'),
     "$exeHash *$entryPoint`n", [Text.UTF8Encoding]::new($false))
 
-$zip = Join-Path $build 'EndfieldJiggleConfigurator-v0.2.2-win64.zip'
+$zip = Join-Path $build "EndfieldJiggleConfigurator-$Version-win64.zip"
 [IO.Compression.ZipFile]::CreateFromDirectory(
     $package, $zip, [IO.Compression.CompressionLevel]::Optimal, $false)
 
@@ -101,7 +103,7 @@ if (@($entries | Where-Object {
 
 $report = [ordered]@{
     schema = 1
-    product = 'EndfieldJiggle v0.2.2 portable installer and configurator'
+    product = "EndfieldJiggle $Version portable installer and configurator"
     builtAt = (Get-Date).ToString('o')
     entryPoint = $entryPoint
     executableSha256 = $exeHash

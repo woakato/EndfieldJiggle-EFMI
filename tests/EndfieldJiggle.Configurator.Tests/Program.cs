@@ -60,22 +60,24 @@ Directory.CreateDirectory(runtime);
 Dictionary<string, (byte[] Bytes, DateTime Time)> packageFiles = new(StringComparer.OrdinalIgnoreCase);
 using (ZipArchive archive = ZipFile.OpenRead(archivePath))
 {
-    const string marker = "/Mods/EndfieldJiggleEFMI/";
+    ZipArchiveEntry entryPoint = archive.Entries.Single(entry => entry.FullName == "EndfieldJiggle.ini" ||
+        entry.FullName.EndsWith("/EndfieldJiggle.ini", StringComparison.Ordinal));
+    string prefix = entryPoint.FullName[..^"EndfieldJiggle.ini".Length];
     ZipArchiveEntry[] files = archive.Entries.Where(entry =>
-        entry.FullName.Contains(marker, StringComparison.Ordinal) &&
-        !entry.FullName.Contains(marker + "Configurator/", StringComparison.Ordinal) &&
+        entry.FullName.StartsWith(prefix, StringComparison.Ordinal) &&
+        (entry.FullName[prefix.Length..] is "EndfieldJiggle.ini" or "Passes.ini" or "Outfits.ini" or "JiggleForge-LICENSE" ||
+         entry.FullName[prefix.Length..].StartsWith("shaders/", StringComparison.Ordinal)) &&
         !entry.FullName.EndsWith('/')).ToArray();
-    Check(files.Any(entry => entry.FullName.EndsWith("/EndfieldJiggle.ini", StringComparison.Ordinal)) &&
-          files.Any(entry => entry.FullName.EndsWith("/Passes.ini", StringComparison.Ordinal)),
+    Check(files.Any(entry => entry.FullName == prefix + "EndfieldJiggle.ini") &&
+          files.Any(entry => entry.FullName == prefix + "Passes.ini"),
         "Official package contains both configurable INIs");
 
     foreach (ZipArchiveEntry entry in files)
     {
-        int markerIndex = entry.FullName.IndexOf(marker, StringComparison.Ordinal);
-        string relative = SafeRelative(entry.FullName[(markerIndex + marker.Length)..]);
+        string relative = SafeRelative(entry.FullName[prefix.Length..]);
         string destination = Path.GetFullPath(Path.Combine(runtime, relative));
-        string prefix = Path.GetFullPath(runtime) + Path.DirectorySeparatorChar;
-        if (!destination.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        string destinationPrefix = Path.GetFullPath(runtime) + Path.DirectorySeparatorChar;
+        if (!destination.StartsWith(destinationPrefix, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Archive path leaves the fixture runtime.");
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
         using Stream source = entry.Open();
@@ -162,7 +164,8 @@ Check(runtimeText.Contains(" || ($ui_mouse && !$drag) ||", StringComparison.Ordi
 if (includesOutfits)
 {
     Check(runtimeText.Contains("if $outfit_active\n    drawindexedinstanced = $outfit_count", StringComparison.Ordinal) &&
-          passesText.Split("if !$outfit_seen &&", StringSplitOptions.None).Length == 13 &&
+          passesText.Split("if !$outfit_seen &&", StringSplitOptions.None).Length ==
+              (passesText.Contains("[CommandListBindPass13]", StringComparison.Ordinal) ? 14 : 13) &&
           File.ReadAllBytes(Path.Combine(runtime, "Outfits.ini")).SequenceEqual(packageFiles["Outfits.ini"].Bytes),
         "Configuring the exported release preserves outfit picking, exclusions and callbacks");
 }
@@ -226,7 +229,9 @@ Reject(() => (configured with { Physics = new PhysicsSettings(0.8m, 0.04m, 0.75m
 string[] originalGates = File.ReadAllLines(Path.Combine(runtime, "Passes.ini"))
     .Where(line => line.Contains("&& !", StringComparison.Ordinal) &&
                    line.Contains("$ui_mouse", StringComparison.Ordinal)).ToArray();
-Check(originalGates.Length == 12, "The installed pass file has exactly twelve recognized input gates");
+bool hasSkinPass = File.ReadAllText(Path.Combine(runtime, "Passes.ini"))
+    .Contains("[CommandListBindPass13]", StringComparison.Ordinal);
+Check(originalGates.Length == (hasSkinPass ? 13 : 12), "The installed pass file has the reviewed native input gates");
 string extraGate = File.ReadAllText(Path.Combine(runtime, "Passes.ini")) +
     Environment.NewLine + "if $enabled && $mod_id > 0 && !$ui_mouse && !$cancelled";
 string gatePath = Path.Combine(runtime, "Passes.ini");
@@ -235,6 +240,14 @@ File.WriteAllText(gatePath, extraGate, new UTF8Encoding(false));
 Reject(() => new RuntimeSettingsStore(runtime).Read(),
     "Unexpected extra input gates make the package unsupported rather than broadly rewriting it");
 File.WriteAllBytes(gatePath, passesOriginal);
+if (hasSkinPass)
+{
+    File.WriteAllText(gatePath, Encoding.UTF8.GetString(passesOriginal)
+        .Replace("run = CommandListBindPass13", "run = CommandListBindPass12", StringComparison.Ordinal));
+    Reject(() => new RuntimeSettingsStore(runtime).Read(),
+        "The added skin program cannot silently use the wrong pass");
+    File.WriteAllBytes(gatePath, passesOriginal);
+}
 
 string outfitRuntime = Path.Combine(testRoot, "EFMI", "Mods", "outfits-runtime");
 Directory.CreateDirectory(outfitRuntime);

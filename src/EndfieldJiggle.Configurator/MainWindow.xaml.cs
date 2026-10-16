@@ -193,7 +193,7 @@ public partial class MainWindow : Window
         }
         else InstallPreviewText.Text = "此配置器未内置安装资源。";
         InstallRestoreButton.IsEnabled = InstallablePackage.HasRestorableInstallation(
-            Path.Combine(efmi, "Mods", "EndfieldJiggleEFMI"));
+            location.RuntimeDirectory ?? Path.Combine(efmi, "Mods", "EndfieldJiggleEFMI"));
         string? currentRuntime = location.RuntimeDirectory;
         if (currentRuntime is not null)
         {
@@ -228,14 +228,14 @@ public partial class MainWindow : Window
             InstallResultText.Text = $"安装完成。\n备份：{result.BackupDirectory}\n" +
                 (result.SettingsPreserved ? "已保留原来的按键和强度。" : "已使用本版默认配置。");
             await OpenWorkspaceAsync(preview.EfmiDirectory, token);
-            SetStatus("0.2.2 已安装。", true);
+            SetStatus("0.2.3 已安装。", true);
         }, writing: true);
     }
 
     private async void InstallRestore_Click(object sender, RoutedEventArgs e)
     {
         if (string.IsNullOrEmpty(EfmiPathBox.Text)) return;
-        string runtime = Path.Combine(EfmiPathBox.Text, "Mods", "EndfieldJiggleEFMI");
+        string runtime = store?.Root ?? Path.Combine(EfmiPathBox.Text, "Mods", "EndfieldJiggleEFMI");
         if (MessageBox.Show(this, $"恢复安装前版本：\n{runtime}\n\n请退出游戏和 XXMI。\n" +
                 "安装后有修改的文件不会被强行覆盖。", "恢复安装",
                 MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) return;

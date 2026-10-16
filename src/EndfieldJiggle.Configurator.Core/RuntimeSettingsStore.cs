@@ -522,12 +522,23 @@ public sealed class RuntimeSettingsStore
 
     private static void ValidatePasses(string text)
     {
+        _ = ReviewedPassCount(text);
+    }
+
+    internal static int ReviewedPassCount(string text)
+    {
         IniFile ini = IniFile.Parse(text);
         EnsureNamespace(ini, PassesName);
+        bool skinPass = ini.HasSection("CommandListBindPass13");
+        int expected = skinPass ? 13 : 12;
         int knownGates = CountOccurrences(ini.Text, "&& !$ui_mouse &&") +
             CountOccurrences(ini.Text, "&& !($ui_mouse && !$drag) &&");
-        if (knownGates != 12)
-            throw new InvalidDataException("Passes.ini 的 12 个触摸输入条件不匹配，拒绝改写。");
+        if (knownGates != expected ||
+            skinPass != ini.HasSection("ShaderRegexEJ_5869b530fc5ca4cf") ||
+            skinPass && (ini.Get("ShaderRegexEJ_5869b530fc5ca4cf", "run") != "CommandListBindPass13" ||
+                         ini.SectionText("CommandListBindPass13") != ini.SectionText("CommandListBindPass7")))
+            throw new InvalidDataException("Passes.ini 的已审核触摸绘制或输入条件不匹配，拒绝改写。");
+        return expected;
     }
 
     private static void ValidateOutfits(string text)
@@ -694,6 +705,16 @@ public sealed class RuntimeSettingsStore
         public string Text { get; }
         public int NamespaceCount => namespaces.Values.Sum();
         public string? NamespaceName => namespaces.Count == 1 ? namespaces.Keys.Single() : null;
+        public bool HasSection(string name) => sections.ContainsKey(name);
+        public string SectionText(string name)
+        {
+            if (!sections.TryGetValue(name, out List<int>? starts) || starts.Count != 1)
+                throw new InvalidDataException($"INI 节重复或缺失：[{name}]");
+            int end = sections.Values.SelectMany(value => value).Where(index => index > starts[0])
+                .DefaultIfEmpty(lines.Length).Min();
+            return string.Join("\n", lines[(starts[0] + 1)..end].Select(line => line.Trim())
+                .Where(line => line.Length != 0 && !line.StartsWith(';')));
+        }
 
         private IniFile(string text, string[] lines,
             Dictionary<string, List<int>> sections, Dictionary<string, int> namespaces)

@@ -26,7 +26,6 @@ public partial class App : Application
         }
         MainWindow = window;
         window.Show();
-        await window.InitializeAsync(e.Args.Contains("--launch", StringComparer.Ordinal),
-            e.Args.Contains("--elevated-retry", StringComparer.Ordinal));
+        await window.InitializeAsync(e.Args.Contains("--launch", StringComparer.Ordinal));
     }
 }

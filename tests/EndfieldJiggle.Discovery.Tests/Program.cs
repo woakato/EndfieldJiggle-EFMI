@@ -26,6 +26,35 @@ Directory.CreateDirectory(exeDirectory);
 Check(RuntimeLocationLocator.Discover(exeDirectory, fixture)?.RuntimeDirectory == runtime,
     "portable EXE resolves its own location without remembered paths");
 
+string versionedEfmi = Path.Combine(fixture, "VersionedEFMI");
+string versionedRuntime = Path.Combine(versionedEfmi, "Mods", "EndfieldJiggleEFMI-v0.2.3-drop-in-win64");
+Directory.CreateDirectory(versionedRuntime);
+File.Copy(Path.Combine(efmi, "d3dx.ini"), Path.Combine(versionedEfmi, "d3dx.ini"));
+File.Copy(Path.Combine(efmi, "d3d11.dll"), Path.Combine(versionedEfmi, "d3d11.dll"));
+foreach (string file in Directory.EnumerateFiles(runtime, "*", SearchOption.AllDirectories))
+{
+    string relative = Path.GetRelativePath(runtime, file);
+    if (relative == "EndfieldJiggle.install.json") continue;
+    string destination = Path.Combine(versionedRuntime, relative);
+    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+    File.Copy(file, destination);
+    File.SetLastWriteTimeUtc(destination, File.GetLastWriteTimeUtc(file));
+}
+Check(RuntimeLocationLocator.Discover(Path.Combine(versionedRuntime, "Configurator"), fixture)
+        ?.RuntimeDirectory == versionedRuntime,
+    "flat version-named package discovers its actual runtime");
+InstallationPreview versionedPreview = package.Preview(versionedEfmi);
+Check(versionedPreview.RuntimeDirectory == versionedRuntime && versionedPreview.IsUpgrade,
+    "upgrade targets the version-named runtime instead of creating a duplicate");
+package.Install(versionedPreview, requireStopped: false);
+Check(Directory.EnumerateDirectories(Path.Combine(versionedEfmi, "Mods")).Count() == 1,
+    "version-named upgrade keeps one runtime directory");
+InstallablePackage.RestoreInstallation(versionedRuntime, requireStopped: false);
+Check(File.Exists(Path.Combine(versionedRuntime, "Passes.ini")),
+    "version-named upgrade restores its original installation");
+Check(ModLibraryStore.Scan(Path.Combine(versionedEfmi, "Mods")).Count == 0,
+    "version-named touch runtime is excluded from the outfit library");
+
 string holding = Path.Combine(fixture, "runtime-staging");
 Directory.Move(runtime, holding);
 Directory.CreateDirectory(runtime);

@@ -38,7 +38,7 @@ public partial class MainWindow
     {
         OpenFolderDialog dialog = new()
         {
-            Title = "选择当前 EFMI/Mods 中的换装目录", Multiselect = false,
+            Title = "选择换装源目录（可来自任意 Mod 管理器）", Multiselect = false,
             InitialDirectory = store is null ? null : Path.GetDirectoryName(store.Root),
         };
         if (dialog.ShowDialog(this) == true)
@@ -56,6 +56,8 @@ public partial class MainWindow
         DrawGrid.ItemsSource = drawRows;
         outfitStore = null;
         outfitInspection = null;
+        stateStore = null;
+        statePlan = null;
         AdaptOutfitButton.IsEnabled = RestoreOutfitButton.IsEnabled = InspectOutfitButton.IsEnabled = false;
         CheckStateButton.IsEnabled = RecoverStateButton.IsEnabled = RestoreStateButton.IsEnabled = false;
         try
@@ -65,7 +67,8 @@ public partial class MainWindow
             string runtime = store.Root;
             outfitStore = await Task.Run(() => new OutfitAdapterStore(directory, runtime), token);
             token.ThrowIfCancellationRequested();
-            InspectOutfitButton.IsEnabled = CheckStateButton.IsEnabled = true;
+            InspectOutfitButton.IsEnabled = true;
+            CheckStateButton.IsEnabled = outfitStore.IsInEfmiModsTree;
             await InspectOutfitAsync(token);
         }
         catch (OperationCanceledException) { throw; }
@@ -92,8 +95,6 @@ public partial class MainWindow
             row.PropertyChanged += (_, _) => UpdateAdaptButton();
         FilterDraws();
         RestoreOutfitButton.IsEnabled = inspected.Restore;
-        AdaptOutfitButton.IsEnabled = !inspection.AlreadyAdapted &&
-            inspection.SupportedDraws.Count > 0 && inspection.MissingRequiredResources.Count == 0;
         OutfitSummaryText.Text = inspection.AlreadyAdapted ? "已包含触摸包装器，不重复适配。" :
             $"可适配 {inspection.SupportedDraws.Count} 项 · 未支持 {inspection.UnsupportedDraws.Count} 项" +
             $" · 缺失必要资源 {inspection.MissingRequiredResources.Count} 项";
@@ -110,6 +111,11 @@ public partial class MainWindow
         foreach (string missing in inspection.MissingRequiredResources) text.AppendLine("[必要资源缺失] " + missing);
         foreach (string missing in inspection.MissingUnreferencedResources) text.AppendLine("[未引用资源缺失] " + missing);
         OutfitDetailsText.Text = text.ToString();
+        UpdateAdaptButton();
+        if (outfitStore.IsInEfmiModsTree)
+            OutfitSummaryText.Text += " QAQM 状态检查为可选诊断，不影响普通绘制适配。";
+        else
+            OutfitSummaryText.Text += " 外部 Mod 源目录：适配会写入此目录，部署由原 Mod 管理器负责。";
         SetStatus("换装分析完成。", true);
         FooterText.Text = outfitStore.Root;
     }
@@ -152,14 +158,16 @@ public partial class MainWindow
         string[] selectedDraws = drawRows.Where(row => row.Enabled).Select(row => row.Draw.Id).ToArray();
         await RunOperationAsync("适配换装", async token =>
         {
-            // Resolve broken third-party state before changing rendering wrappers.
-            if (!await StateAllowsAdaptationAsync(token)) return;
             await Task.Run(() => selected.Apply(fingerprint, selectedDraws, requireStopped: !hot));
             await InspectOutfitAsync(token);
             await RefreshLibraryAsync(token);
-            SetStatus("原目录适配完成。模型与纹理未复制。", true);
+            SetStatus(outfitStore.IsInEfmiModsTree
+                ? "原目录适配完成。模型与纹理未复制。"
+                : "源目录适配完成。请让原 Mod 管理器重新部署或刷新此 Mod。", true);
             FooterText.Text = hot ? "写入已结束。回到游戏按 F10 重载，再开启触摸。" :
-                "适配已保存。启动游戏后由 EFMI 加载，不需要保持此程序运行。";
+                outfitStore.IsInEfmiModsTree
+                    ? "适配已保存。启动游戏后由 EFMI 加载，不需要保持此程序运行。"
+                    : "适配已保存到源目录；请由原 Mod 管理器重新部署后再启动游戏。";
         }, writing: true);
     }
 

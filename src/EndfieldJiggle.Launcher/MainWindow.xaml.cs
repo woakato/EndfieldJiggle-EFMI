@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Security.Principal;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Media;
@@ -19,13 +18,11 @@ public partial class MainWindow : Window
     private bool ready;
     private bool closeAfterCancellation;
     private bool busy;
-    private bool elevationRetried;
 
     public MainWindow() => InitializeComponent();
 
-    public async Task InitializeAsync(bool autoLaunch, bool alreadyRetried = false)
+    public async Task InitializeAsync(bool autoLaunch)
     {
-        elevationRetried = alreadyRetried;
         SetBusy(true);
         try
         {
@@ -42,7 +39,7 @@ public partial class MainWindow : Window
             }
             StatusText.Text = string.IsNullOrWhiteSpace(GamePathBox.Text)
                 ? "点击“选择游戏”，找到游戏安装目录中的 Endfield.exe。"
-                : "完整包校验通过，已选择游戏，待启动。";
+                : "校验通过。点击“等待官方启动”，再从官方启动器开始游戏。";
         }
         catch (Exception error) { Report(error); }
         finally { SetBusy(false); }
@@ -80,7 +77,7 @@ public partial class MainWindow : Window
             Title = "选择 Endfield.exe", CheckFileExists = true };
         if (dialog.ShowDialog(this) != true) return;
         GamePathBox.Text = dialog.FileName;
-        StatusText.Text = "已选择游戏，可以保存或启动。";
+        StatusText.Text = "已选择游戏。点击“等待官方启动”，再从官方启动器开始游戏。";
     }
 
     private async void Discover_Click(object sender, RoutedEventArgs e)
@@ -121,46 +118,31 @@ public partial class MainWindow : Window
         SetBusy(true);
         launchCancellation = new();
         CancelButton.Visibility = Visibility.Visible;
-        bool relaunched = false;
         try
         {
             GameLocation game = await Task.Run(() => settings.Save(selected));
-            StatusText.Text = "准备启动…";
+            Log("mode=manual-official-launcher; injection=upstream-direct; dx11=user-confirmation-required");
+            StatusText.Text = "准备等待官方启动…";
             await Task.Run(() => LaunchSession.Start(package, game.Executable,
                 message => Dispatcher.Invoke(() => StatusText.Text = message),
-                launchCancellation.Token));
+                launchCancellation.Token, Log));
             Log("EFMI loaded");
         }
-        catch (Exception error) when (LaunchSession.ShouldRequestElevation(error, IsElevated(), elevationRetried))
+        catch (OperationCanceledException)
         {
-            Log(error.ToString());
-            StatusText.Text = "游戏需要管理员权限，正在通过 Windows 获取启动权限…";
-            try
-            {
-                using Process process = Process.Start(LaunchSession.CreateElevatedLauncherStartInfo(
-                    Path.Combine(package.Root, "EndfieldJiggleLauncher.exe")))
-                    ?? throw new IOException("未能打开管理员启动器，请右键本程序以管理员身份运行。");
-                relaunched = true;
-                Log("Elevated launcher started");
-            }
-            catch (Exception elevationError) { Report(elevationError); }
+            Log("phase=cancelled");
+            StatusText.Text = "已取消等待；不会关闭游戏。若 EFMI 已开始加载，取消不会卸载它。";
         }
-        catch (OperationCanceledException) { StatusText.Text = "已取消等待。"; }
-        catch (Exception error) { Report(error); }
+        catch (TimeoutException error) { Log("phase=timeout"); Report(error); }
+        catch (Exception error) { Log("phase=failed"); Report(error); }
         finally
         {
             launchCancellation.Dispose();
             launchCancellation = null;
             CancelButton.Visibility = Visibility.Collapsed;
             SetBusy(false);
-            if (closeAfterCancellation || relaunched) Close();
+            if (closeAfterCancellation) Close();
         }
-    }
-
-    private static bool IsElevated()
-    {
-        using WindowsIdentity identity = WindowsIdentity.GetCurrent();
-        return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e) => launchCancellation?.Cancel();
@@ -233,9 +215,9 @@ public partial class MainWindow : Window
         ready = true;
         VersionText.Text = $"EFMI {manifest.EfmiVersion} · XXMI 渲染库 {manifest.LibrariesVersion}";
         GamePathBox.Text = @"D:\游戏\明日方舟终末地\EndField Game\Endfield.exe";
-        StatusText.Text = "完整包校验通过，待启动。";
+        StatusText.Text = "校验通过。点击“等待官方启动”，再从官方启动器开始游戏。";
         Show();
-        foreach ((int width, int height) in new[] { (760, 520), (640, 480) })
+        foreach ((int width, int height) in new[] { (760, 550), (640, 520) })
         {
             Width = width;
             Height = height;
@@ -259,11 +241,19 @@ public partial class MainWindow : Window
             emptyEncoder.Save(stream);
         SetBusy(true);
         CancelButton.Visibility = Visibility.Visible;
-        StatusText.Text = "游戏已启动，等待 EFMI 加载…";
+        GamePathBox.Text = @"D:\游戏\明日方舟终末地\EndField Game\Endfield.exe";
+        StatusText.Text = "等待官方启动（最多 5 分钟）。请在官方启动器确认 DirectX 11，再点击开始游戏。";
         await Dispatcher.InvokeAsync(UpdateLayout, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        RenderTargetBitmap waiting = new((int)ActualWidth, (int)ActualHeight, 96, 96, PixelFormats.Pbgra32);
+        waiting.Render(this);
+        PngBitmapEncoder waitingEncoder = new();
+        waitingEncoder.Frames.Add(BitmapFrame.Create(waiting));
+        using (FileStream stream = File.Create(Path.Combine(output, "launcher-waiting.png")))
+            waitingEncoder.Save(stream);
         File.WriteAllText(Path.Combine(output, "smoke-report.json"),
             JsonSerializer.Serialize(new { schema = 1, manifest.Version, manifest.EfmiVersion,
-                manifest.LibrariesVersion, officialExportsResolved = true, screenshots = 3,
+                manifest.LibrariesVersion, officialExportsResolved = true, screenshots = 4,
+                launchMode = "manual-official-launcher", startsGameExecutable = false,
                 gameStarted = false, injectorCalled = false, liveInstallationModified = false },
                 StandalonePackage.JsonOptions));
         Hide();

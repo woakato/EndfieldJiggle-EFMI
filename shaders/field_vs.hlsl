@@ -34,25 +34,31 @@ FrameOutput main(float3 position : POSITION, float3 normal : NORMAL
     output.normal = normal;
 #ifdef NORMAL_ONLY
     float3 axis = abs(normal.x) < 0.8 ? float3(1, 0, 0) : float3(0, 1, 0);
-    float3 tangent = normalize(cross(normal, axis));
+    float3 tangent = JF_SafeNormalize(cross(normal, axis), float3(0, 0, 1));
 #else
     output.tangent = tangent;
 #endif
-    if (Control[0].w > 0.5)
+    if (Control[0].w > 0.5 && any(Control[0].xyz != 0.0))
     {
-        float3 world = position + Native[44].xyz;
-        float3 delta = JF_EvaluateGrabField(world, Control[1].xyz,
-            Control[0].xyz, Control[1].w, Control[2].w, Control[3].x);
-        float3 bitangent = cross(normal, tangent);
-        float3 newTangent;
-        float3 discarded;
-        JF_ReconstructSurfaceFrame(world, normal, tangent, bitangent,
-            Control[1].xyz, Control[0].xyz, Control[1].w,
-            Control[2].w, Control[3].x, 1.0, delta,
-            output.normal, newTangent, discarded);
+        // Differentiate in anchor-local space: world-space millimeter samples
+        // collapse to the same float at large camera coordinates.
+        float3 relative = position - (Control[1].xyz - Native[CAMERA_INDEX].xyz);
+        float radius = max(Control[1].w, 1e-6);
+        if (dot(relative, relative) < radius * radius)
+        {
+            float3 delta = JF_EvaluateGrabField(relative, 0.0,
+                Control[0].xyz, Control[1].w, Control[2].w, Control[3].x);
+            float3 bitangent = cross(normal, tangent);
+            float3 newTangent;
+            float3 discarded;
+            JF_ReconstructSurfaceFrame(relative, normal, tangent, bitangent,
+                0.0, Control[0].xyz, Control[1].w,
+                Control[2].w, Control[3].x, 1.0, delta,
+                output.normal, newTangent, discarded);
 #ifndef NORMAL_ONLY
-        output.tangent = newTangent;
+            output.tangent = newTangent;
 #endif
+        }
     }
     return output;
 }
@@ -60,10 +66,12 @@ FrameOutput main(float3 position : POSITION, float3 normal : NORMAL
 float4 main(float3 position : POSITION) : SV_Position
 {
     float3 displaced = position;
-    if (Control[0].w > 0.5)
-        displaced += JF_EvaluateGrabField(position + Native[CAMERA_INDEX].xyz,
-            Control[1].xyz, Control[OFFSET_INDEX].xyz,
+    if (Control[0].w > 0.5 && any(Control[OFFSET_INDEX].xyz != 0.0))
+    {
+        float3 relative = position - (Control[1].xyz - Native[CAMERA_INDEX].xyz);
+        displaced += JF_EvaluateGrabField(relative, 0.0, Control[OFFSET_INDEX].xyz,
             Control[1].w, Control[2].w, Control[3].x);
+    }
     return float4(displaced, 1.0);
 }
 #endif

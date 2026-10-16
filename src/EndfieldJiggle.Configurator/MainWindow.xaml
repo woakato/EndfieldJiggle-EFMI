@@ -1,7 +1,7 @@
 <Window x:Class="EndfieldJiggle.Configurator.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="EndfieldJiggle 0.2.2" Width="1120" Height="820"
+        Title="EndfieldJiggle 0.2.3" Width="1120" Height="820"
         MinWidth="880" MinHeight="680" WindowStartupLocation="CenterScreen"
         Background="#F2F4F5" AllowDrop="True" PreviewKeyDown="Window_PreviewKeyDown"
         DragOver="Window_DragOver" Drop="Window_Drop">
@@ -42,7 +42,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="EndfieldJiggle" FontSize="24" FontWeight="SemiBold"/>
-                    <TextBlock Text="EFMI · 0.2.2" Foreground="#58616B" Margin="14,7,0,0"/>
+                    <TextBlock Text="EFMI · 0.2.3" Foreground="#58616B" Margin="14,7,0,0"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                     <Button x:Name="OpenWorkspaceButton" Click="ChooseRuntime_Click" ToolTip="选择触摸 Mod、Mods 或 EFMI 目录">
@@ -348,8 +348,10 @@
                         </Expander>
                     </Grid>
                     <WrapPanel Grid.Row="4" Margin="0,14,0,0">
-                        <Button x:Name="CheckStateButton" Content="检查依赖状态" Click="CheckState_Click" IsEnabled="False"/>
-                        <Button x:Name="RecoverStateButton" Content="补齐缺失状态" Click="RecoverState_Click" IsEnabled="False"/>
+                        <Button x:Name="CheckStateButton" Content="检查 QAQM 状态（可选）" Click="CheckState_Click" IsEnabled="False"
+                                ToolTip="仅检查当前 EFMI/Mods 中实际加载的换装；不会阻止普通绘制适配。"/>
+                        <Button x:Name="RecoverStateButton" Content="修复 QAQM 状态（可选）" Click="RecoverState_Click" IsEnabled="False"
+                                ToolTip="仅在主动检查后，依据当前换装已有证据恢复缺失状态声明。"/>
                         <Button x:Name="RestoreStateButton" Content="撤销状态恢复" Click="RestoreState_Click" IsEnabled="False"/>
                     </WrapPanel>
                 </Grid>
@@ -416,7 +418,7 @@
                     <TextBlock Text="&#xE711;" Style="{StaticResource Icon}"/>
                 </Button>
             </Grid>
-            <TextBlock x:Name="FooterText" Foreground="#58616B" TextWrapping="Wrap" Text="0.2.2"/>
+            <TextBlock x:Name="FooterText" Foreground="#58616B" TextWrapping="Wrap" Text="0.2.3"/>
         </StackPanel>
     </Grid>
 </Window>

@@ -10,8 +10,9 @@ string outfit = Path.Combine(mods, "FixtureOutfit");
 string runtime = Path.Combine(mods, "EndfieldJiggleEFMI");
 Directory.CreateDirectory(outfit);
 Directory.CreateDirectory(runtime);
-string runtimeFixture = Path.Combine(repository, "reports", "universal", "build-20261008-174720-527",
-    "package", "Mods", "EndfieldJiggleEFMI");
+string runtimeFixture = args.Length > 1 ? Path.GetFullPath(args[1]) :
+    Path.Combine(repository, "reports", "universal", "build-20261008-174720-527",
+        "package", "Mods", "EndfieldJiggleEFMI");
 foreach (string name in new[] { "EndfieldJiggle.ini", "Passes.ini", "Outfits.ini" })
     File.Copy(Path.Combine(runtimeFixture, name), Path.Combine(runtime, name));
 
@@ -91,6 +92,21 @@ Check(inspection.MissingUnreferencedResources.Count == 1,
     "unreferenced missing resources are warning-only");
 Check(!inspection.MissingRequiredResources.Any(item => item.Contains("includes", StringComparison.OrdinalIgnoreCase)),
     "include_recursive accepts an existing directory");
+
+string externalSource = Path.Combine(fixture, "ManagedProfile", "DownloadedOutfit");
+Directory.CreateDirectory(externalSource);
+string externalIni = Path.Combine(externalSource, "external.ini");
+string externalOriginal = "namespace = External\n[TextureOverrideBody]\ndrawindexed = 3, 0, 0\n";
+File.WriteAllText(externalIni, externalOriginal);
+OutfitAdapterStore externalStore = new(externalSource, runtime);
+Check(!externalStore.IsInEfmiModsTree, "external Mod-manager source is identified without a manager-specific integration");
+OutfitAdapterInspection externalInspection = externalStore.Inspect();
+externalStore.Apply(externalInspection.Fingerprint, requireStopped: false);
+Check(File.ReadAllText(externalIni).Contains("; EJ-OUTFIT/1 BEGIN ", StringComparison.Ordinal),
+    "external Mod-manager source can receive the same wrapper");
+externalStore.Restore(requireStopped: false);
+Check(File.ReadAllText(externalIni) == externalOriginal,
+    "external source restore returns the exact original file");
 
 string disabledOutfit = Path.Combine(mods, "DISABLED_FixtureOutfit");
 Directory.CreateDirectory(disabledOutfit);

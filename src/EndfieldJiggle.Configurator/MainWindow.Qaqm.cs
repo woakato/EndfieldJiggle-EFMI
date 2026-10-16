@@ -16,6 +16,8 @@ public partial class MainWindow
         RecoverStateButton.IsEnabled = RestoreStateButton.IsEnabled = false;
         if (store is null || outfitStore is null)
             throw new InvalidOperationException("请先选择运行时和换装目录。");
+        if (!outfitStore.IsInEfmiModsTree)
+            throw new InvalidOperationException("QAQM 检查只适用于当前 EFMI/Mods 中实际参与加载的换装；外部 Mod 源目录请由原管理器负责部署。");
         string outfit = outfitStore.Root;
         string runtime = store.Root;
         var inspected = await Task.Run(() =>
@@ -32,7 +34,11 @@ public partial class MainWindow
         RestoreStateButton.IsEnabled = inspected.Restore;
         StringBuilder details = new("QAQM 状态检查\n\n");
         foreach (QaqmRecoveryHost host in plan.MissingHosts)
-            details.AppendLine($"[可恢复] {host.FileName} · {host.Variables.Count} 个变量");
+        {
+            details.AppendLine(host.SourceHostPath is null
+                ? $"[可恢复声明] {host.FileName} · {host.Variables.Count} 个变量"
+                : $"[可恢复加载] {host.FileName} · {host.Variables.Count} 个变量\n{host.SourceHostPath}");
+        }
         foreach (QaqmLoadedHost host in plan.LoadedHosts)
             details.AppendLine($"[已加载] Bridge_{host.Id}\n{host.Path}");
         foreach (QaqmRecoveryIssue issue in plan.Issues)
@@ -41,18 +47,6 @@ public partial class MainWindow
             details.AppendLine("未发现缺失的状态声明。");
         OutfitDetailsText.Text = details.ToString();
         return plan;
-    }
-
-    private async Task<bool> StateAllowsAdaptationAsync(CancellationToken token)
-    {
-        QaqmRecoveryPlan plan = await InspectStateAsync(token);
-        if (plan.Issues.Count > 0 || plan.MissingHosts.Count > 0)
-        {
-            SetStatus(plan.Issues.Count > 0 ? "状态依赖未解决，暂未修改换装。详见检查结果。" :
-                "先退出游戏补齐缺失的 QAQM 状态，再进行绘制适配。", false);
-            return false;
-        }
-        return true;
     }
 
     private async void CheckState_Click(object sender, RoutedEventArgs e)
@@ -69,15 +63,16 @@ public partial class MainWindow
         if (stateStore is null || statePlan is null || !statePlan.CanApply) return;
         QaqmRecoveryStore selected = stateStore;
         string fingerprint = statePlan.Fingerprint;
-        if (MessageBox.Show(this, "请先退出游戏和 XXMI。\n\n仅从这套换装自己的 .qaqm-persistbak " +
-                "恢复已证实的缺失声明，不修改 UI、换装绘制或全局配置。\n已加载的 Bridge 不会重复生成。",
-                "补齐缺失状态", MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK) return;
+        if (MessageBox.Show(this, "请先退出游戏和 XXMI。\n\n优先重新加载现有 QAQM 状态缓存，保留原有选项。" +
+                "\n缓存不存在时才从这套换装自己的 .qaqm-persistbak 恢复已证实的声明。" +
+                "\n生成文件保存在所选换装目录，已加载的 Bridge 不会重复生成。",
+                "修复状态加载", MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK) return;
         await RunOperationAsync("恢复缺失状态", async token =>
         {
             QaqmRecoveryResult result = await Task.Run(() => selected.Apply(fingerprint));
             await InspectOutfitAsync(token);
             await InspectStateAsync(token);
-            SetStatus(result.Changed ? "缺失状态已恢复。" : "没有需要恢复的状态。", true);
+            SetStatus(result.Changed ? "状态加载已修复，请完整重启游戏。" : "没有需要恢复的状态。", true);
             FooterText.Text = result.ReceiptPath ?? "状态未变化。";
         }, writing: true);
     }

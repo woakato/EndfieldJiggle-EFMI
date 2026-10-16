@@ -6,13 +6,13 @@
 渲染库、触摸插件和配置器；整包解压后选择游戏路径启动。
 以下拖放安装步骤适用于已经安装 XXMI / EFMI 的用户。
 
-已有 XXMI 的 Windows 使用者推荐下载 `EndfieldJiggleEFMI-v0.2.2-drop-in-win64.zip`
+已有 XXMI 的 Windows 使用者推荐下载 `EndfieldJiggleEFMI-v0.2.3-drop-in-win64.zip`
 （拖放即用，含可选配置器），也可下载
-`EndfieldJiggleEFMI-v0.2.2-win64.zip`（仅 Mod，不含 EXE）。
+`EndfieldJiggleEFMI-v0.2.3-win64.zip`（仅 Mod，不含 EXE）。
 GitHub 自动生成的 `Source code` 归档以及单独标记的 `v0.1.0-source`
 都只是源码，不是安装包。
 
-配置器已内置在拖放包，可安装、改键和原目录换装适配，不会常驻后台。
+配置器已内置在拖放包，可安装、改键和换装源目录适配，不会常驻后台。
 
 ## 完整运行时的测试流程
 
@@ -30,12 +30,12 @@ GitHub 自动生成的 `Source code` 归档以及单独标记的 `v0.1.0-source`
 
 ### 安装步骤
 
-1. 下载并解压上述 v0.2.2 安装包。
+1. 下载上述 v0.2.3 安装包。
 2. 完全退出游戏和 XXMI 启动器。
 3. 找到自己 EFMI 包中的 `Mods` 文件夹。
 4. 将已有 `Mods/EndfieldJiggleEFMI` 备份到 `Mods` 之外（如果存在）。
-5. 将拖放包内的 `EndfieldJiggleEFMI` 复制到 EFMI 的 `Mods`。
-6. 确认路径为 `EFMI/Mods/EndfieldJiggleEFMI/EndfieldJiggle.ini`。
+5. 将 ZIP 解压到 `Mods` 下一个独立文件夹，可保留包名或命名为 `EndfieldJiggleEFMI`。
+6. 确认这个目录直接包含 `shaders` 和 `EndfieldJiggle.ini`，没有额外的内部 Mod 文件夹。
 7. 通过 XXMI 启动游戏。触摸默认关闭。
 
 不要覆盖框架 DLL、全局配置、ShaderFixes 或其他 Mod。ZIP 附带的
@@ -81,8 +81,9 @@ GitHub 自动生成的 `Source code` 归档以及单独标记的 `v0.1.0-source`
 取消重载模式时需退出游戏和 XXMI。参数保存仅更新
 本 Mod 的 `EndfieldJiggle.ini`、`Passes.ini`，以及存在时的 `Outfits.ini`，
 并将更新前字节及时间戳备份至 `ConfiguratorBackups`。着色器、缓存、
-`d3dx.ini`、注入 DLL 和游戏文件不会被编辑。原目录换装适配会在另行确认后
-修改所选换装的 INI；详情见[配置器](CONFIGURATOR.md)。
+`d3dx.ini`、注入 DLL 和游戏文件不会被编辑。换装适配会在另行确认后修改用户
+明确选择的源目录 INI；源目录可以来自其他 Mod 管理器，适配后需由原管理器重新
+部署或刷新。详情见[配置器](CONFIGURATOR.md)。
 
 设置保存在 Mod 的 INI 文件中。应用成功后可关闭或删除 `Configurator`
 文件夹；下次从 XXMI 启动时仍会使用保存的值。若只使用基础包默认快捷键，
@@ -138,11 +139,13 @@ GitHub 自动生成的 `Source code` 归档以及单独标记的 `v0.1.0-source`
 
 ## 换装兼容
 
-v0.2.2 保留 v0.2.1 的 EJTouch 桥接，并通过程序在普通换装原目录生成支持的绘制包装器。
+v0.2.2 保留 v0.2.1 的 EJTouch 桥接，并通过程序在换装源目录生成支持的绘制包装器。
 手动升级前备份旧目录，不要混合版本或用旧 INI 覆盖新版。
 基础运行时首次升级后完整重启；换装 INI 适配可在确认后按 F10 重载，
 先关闭触摸并让目标角色离开画面。QAQM 缺失声明可在程序中按当前依赖检查和恢复，
-见[换装兼容](OUTFIT-COMPATIBILITY.md)与[状态恢复](QAQM-STATE-RECOVERY.md)。
+但 QAQM 检查不是普通绘制适配的前置条件。其他 Mod 管理器的源目录适配完成后，
+需要由管理器重新部署，再检查实际加载状态。见[换装兼容](OUTFIT-COMPATIBILITY.md)
+与[状态恢复](QAQM-STATE-RECOVERY.md)。
 
 ## 提交反馈
 

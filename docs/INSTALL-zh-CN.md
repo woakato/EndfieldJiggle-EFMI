@@ -1,31 +1,47 @@
-# v0.2.2 安装与升级
+# v0.2.3 安装与升级
 
-本版保留 v0.2.1 的 EJTouch 换装桥接，补充配置器与拖放包。游戏仍由 EFMI / XXMI
+本版补齐原皮颜色绘制的触摸适配，保留 EJTouch 换装桥接、配置器与拖放包。游戏仍由 EFMI / XXMI
 加载触摸 Mod，EXE 用于安装、配置和换装适配，不需要常驻。
 
 ## 选择安装包
 
 - 已有 XXMI / EFMI：使用 `drop-in-win64.zip`，按下面步骤放入已有 `Mods`。
 - 未安装 XXMI Launcher：使用 `standalone-win64.zip`，内置 EFMI 和运行库。
-  整包解压后打开 `EndfieldJiggleLauncher.exe`，选择 `Endfield.exe` 启动。
+  整包解压后打开 `EndfieldJiggleLauncher.exe`，选择 `Endfield.exe` 并开启等待，
+  再通过官方游戏启动器以 DirectX 11 启动。
   详见 [独立版安装说明](STANDALONE.md)；不要把独立包覆盖到已有 EFMI 目录。
 - 已有 EFMI 且不需要程序：使用纯 Mod 的 `win64.zip`。
 
 ## 安装
 
 1. 完全退出游戏与 XXMI。
-2. 推荐下载并解压拖放包 `EndfieldJiggleEFMI-v0.2.2-drop-in-win64.zip`。
-3. 已有旧版时先备份到 `Mods` 之外。将解压出的
-   `EndfieldJiggleEFMI` 放入 EFMI 的 `Mods`；不要混合版本或覆盖 EFMI 根目录。
+2. 下载 `EndfieldJiggleEFMI-v0.2.3-drop-in-win64.zip`，或不含配置器的纯 Mod 包。
+3. 已有旧版时先备份到 `Mods` 之外。将 ZIP 解压到 `Mods` 下一个独立目录；
+   使用压缩软件的“解压到同名文件夹”即可，也可将文件夹命名为 `EndfieldJiggleEFMI`。
+   不要混合版本或覆盖 EFMI 根目录。
 4. 从 XXMI 启动游戏，先确认原版角色或换装显示正常，再开启触摸。
+
+解压后的结构应直接是：
+
+```text
+Mods/
+  EndfieldJiggleEFMI-v0.2.3-drop-in-win64/
+    shaders/
+    EndfieldJiggle.ini
+    Passes.ini
+    Outfits.ini
+    Configurator/EndfieldJiggleConfigurator.exe
+```
+
+纯 Mod 包结构相同，但没有 `Configurator`。压缩包内部没有第二层触摸 Mod 文件夹。
+旧文件夹名 `EndfieldJiggleEFMI` 也受支持；配置器会识别实际安装位置。
 
 默认关闭触摸：`Ctrl+Shift+F8` 开关，`Ctrl+Shift+F7` 强制关闭，
 `Ctrl+Shift+F9` 诊断，按住 `Shift+鼠标左键` 拖动。
 
 ## 配置器
 
-拖放包已将 EXE 放在
-`Mods/EndfieldJiggleEFMI/Configurator/EndfieldJiggleConfigurator.exe`。
+拖放包已将 EXE 放在触摸目录的 `Configurator/EndfieldJiggleConfigurator.exe`。
 仅 Mod 包不含 EXE。已保存的参数在关闭配置器后仍生效。
 参数保存只更新本 Mod 的参数 INI。
 换装适配只在确认后修改所选换装的 INI；不编辑游戏本体、注入 DLL 或全局配置。
@@ -66,5 +82,5 @@
 拖放包不包含第三方换装模型、纹理、游戏本体或替换注入 DLL。
 独立包另行内置官方 EFMI 与配套运行库，不改变已有安装。
 
-本版修复经过本地隔离验证；未完成用户实机复验，不保证所有干员、
+黑面修复经过原始着色器、实际模型顶点回放与加载验证，并获用户接受发布；不保证所有干员、
 换装、部位或游戏更新后的接口兼容。使用前阅读 `DISCLAIMER.md`。

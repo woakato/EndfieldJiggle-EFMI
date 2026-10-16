@@ -99,12 +99,15 @@ string target = Path.Combine(locked, "Mods", "EndfieldJiggleEFMI");
 Directory.CreateDirectory(target);
 using (ZipArchive archive = ZipFile.OpenRead(args[0]))
 {
-    const string marker = "/Mods/EndfieldJiggleEFMI/";
+    ZipArchiveEntry entryPoint = archive.Entries.Single(entry => entry.FullName == "EndfieldJiggle.ini" ||
+        entry.FullName.EndsWith("/EndfieldJiggle.ini", StringComparison.Ordinal));
+    string prefix = entryPoint.FullName[..^"EndfieldJiggle.ini".Length];
     foreach (ZipArchiveEntry entry in archive.Entries)
     {
-        int offset = entry.FullName.IndexOf(marker, StringComparison.Ordinal);
-        if (offset < 0 || entry.FullName.EndsWith('/')) continue;
-        string name = entry.FullName[(offset + marker.Length)..];
+        if (!entry.FullName.StartsWith(prefix, StringComparison.Ordinal) || entry.FullName.EndsWith('/')) continue;
+        string name = entry.FullName[prefix.Length..];
+        if (name is not ("EndfieldJiggle.ini" or "Passes.ini" or "Outfits.ini" or "JiggleForge-LICENSE") &&
+            !name.StartsWith("shaders/", StringComparison.Ordinal)) continue;
         if (name.Contains("..") || name.Contains("Configurator/")) throw new Exception("Unsafe fixture archive");
         string path = Path.Combine(target, name);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);

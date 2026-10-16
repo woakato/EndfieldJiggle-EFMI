@@ -1,8 +1,8 @@
 <Window x:Class="EndfieldJiggle.Launcher.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="EndfieldJiggle 独立版 0.2.2" Width="760" Height="520"
-        MinWidth="640" MinHeight="480" WindowStartupLocation="CenterScreen"
+        Title="EndfieldJiggle 独立版 0.2.2 · 官方启动 · 路径检查修正版" Width="760" Height="550"
+        MinWidth="640" MinHeight="520" WindowStartupLocation="CenterScreen"
         Background="#F2F4F5" FontFamily="Microsoft YaHei UI" FontSize="13"
         Closing="Window_Closing">
     <Grid>
@@ -65,14 +65,14 @@
                     <TextBlock Text="&#xE721;" Style="{StaticResource Icon}"/>
                 </Button>
             </Grid>
-            <TextBlock Grid.Row="2" Text="选择游戏安装目录中的 Endfield.exe，路径会自动保存。"
+            <TextBlock Grid.Row="2" Text="游戏由官方启动器启动。本包只等待所选游戏；请在官方启动器选择 DirectX 11。"
                        Foreground="#58616B" Margin="0,8,0,0" TextWrapping="Wrap"/>
             <WrapPanel Grid.Row="3" Margin="0,16,0,0">
                 <Button x:Name="LaunchButton" Click="Launch_Click" Background="#176B58" Foreground="White"
                         BorderBrush="#176B58" MinWidth="132">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE768;" Style="{StaticResource Icon}" Margin="0,0,8,0"/>
-                        <TextBlock Text="启动游戏" VerticalAlignment="Center"/>
+                        <TextBlock Text="等待官方启动" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <Button x:Name="SaveButton" Click="Save_Click" ToolTip="保存游戏路径">

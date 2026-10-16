@@ -359,6 +359,7 @@ public static class ModLibraryStore
                      StringSplitOptions.RemoveEmptyEntries))
         {
             if (part.Equals("EndfieldJiggleEFMI", StringComparison.OrdinalIgnoreCase) ||
+                part.StartsWith("EndfieldJiggleEFMI-", StringComparison.OrdinalIgnoreCase) ||
                 part.Equals("ConfiguratorBackups", StringComparison.OrdinalIgnoreCase) ||
                 part.Equals("DISABLED_EJTouchBackups", StringComparison.OrdinalIgnoreCase) ||
                 part.Equals("EJTouchBackups", StringComparison.OrdinalIgnoreCase))

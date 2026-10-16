@@ -68,30 +68,170 @@ File.WriteAllText(settingsPath, "{\"schema\":2,\"gameExecutable\":\"wrong\"}");
 Reject(() => store.Read(), "Unknown settings schema is rejected");
 store.Save(gamePath);
 Check(File.ReadAllBytes(gamePath).SequenceEqual(executable), "Selection and settings leave game EXE bytes unchanged");
-var command = LaunchSession.CreateStartInfo(game);
-Check(command.FileName == gamePath && command.WorkingDirectory == gameDirectory &&
-    command.ArgumentList.SequenceEqual(["-force-d3d11"]), "Launch command keeps game path and DX11 separate");
 Win32Exception elevation = new(740, "Raw English error with a private path");
-Check(LaunchSession.ShouldRequestElevation(elevation, elevated: false, alreadyRetried: false),
-    "Elevation-required game startup requests an administrator retry");
-Check(!LaunchSession.ShouldRequestElevation(elevation, elevated: true, alreadyRetried: false) &&
-    !LaunchSession.ShouldRequestElevation(elevation, elevated: false, alreadyRetried: true),
-    "Elevated failures and repeated retries cannot create an elevation loop");
-Check(!LaunchSession.ShouldRequestElevation(new Win32Exception(1223), false, false) &&
-    !LaunchSession.ShouldRequestElevation(new Win32Exception(5), false, false),
-    "Cancelled authorization and other Windows errors do not request another elevation");
-string launcherPath = Path.Combine(bundle, "EndfieldJiggleLauncher.exe");
-var elevatedCommand = LaunchSession.CreateElevatedLauncherStartInfo(launcherPath);
-Check(elevatedCommand.FileName == launcherPath && elevatedCommand.WorkingDirectory == bundle &&
-    elevatedCommand.UseShellExecute && elevatedCommand.Verb == "runas" &&
-    elevatedCommand.ArgumentList.SequenceEqual(["--launch", "--elevated-retry"]),
-    "Administrator retry starts the same bundle and resumes its saved game selection");
-Check(LaunchSession.DescribeWindowsFailure(elevation).Contains("管理员") &&
+Check(LaunchSession.DescribeWindowsFailure(elevation).Contains("权限一致") &&
     !LaunchSession.DescribeWindowsFailure(elevation).Contains("private path"),
-    "Elevation errors display a Chinese instruction instead of raw exception text");
+    "Access errors advise matching official launcher privileges without requesting an elevation retry");
 Check(LaunchSession.DescribeWindowsFailure(new Win32Exception(1223)).Contains("已取消") &&
     LaunchSession.DescribeWindowsFailure(new Win32Exception(999)).Contains("999"),
     "Cancelled authorization and unrecognized errors have useful user messages");
+Check(LaunchSession.DescribeWindowsFailure(new Win32Exception(299)).Contains("进程信息"),
+    "Partial-copy errors identify the process-query stage instead of claiming a shader failure");
+Check(string.Equals(ProcessImagePath.Read(Environment.ProcessId), Environment.ProcessPath,
+    StringComparison.OrdinalIgnoreCase), "Limited-query Win32 API retrieves the current test process image");
+Check(!ProcessImagePath.HasExited(Environment.ProcessId),
+    "Limited-query status detects the running test process without module enumeration");
+Check(ProcessImagePath.Read(int.MaxValue) is null && ProcessImagePath.HasExited(int.MaxValue),
+    "A missing process between enumeration and querying is treated as exited");
+Reject(() => ProcessImagePath.Read(0), "A zero process ID cannot query a different target");
+Reject(() => ProcessImagePath.HasExited(-1), "A negative process ID cannot query a different target");
+
+GameProcess target = new(123, gamePath);
+List<string> phases = [];
+FakeManualRuntime manual = new() { Games = call => call < 3 ? [] : [target] };
+LaunchSession.RunManual(game, manual, _ => { }, CancellationToken.None, phases.Add);
+Check(manual.LoadCalls == 1 && manual.LoadedProcess == 123 && manual.WaitCalls == 1,
+    "Manual mode waits for the selected game and invokes the existing loader exactly once");
+Check(phases.SequenceEqual(["phase=waiting-for-official-launch", "phase=game-detected",
+        "phase=loading-efmi", "phase=efmi-loaded"]),
+    "Manual launch reports ordered diagnostic phases without claiming touch success");
+FakeManualRuntime alreadyRunning = new() { Games = _ => [target] };
+Reject(() => LaunchSession.RunManual(game, alreadyRunning, _ => { }, CancellationToken.None),
+    "A game that was already running is rejected before loading");
+Check(alreadyRunning.LoadCalls == 0, "An existing game is never retroactively loaded");
+FakeManualRuntime wrongPath = new()
+    { Games = call => call == 1 ? [] : [target with { Executable = Path.Combine(fixture, "other", "Endfield.exe") }] };
+Reject(() => LaunchSession.RunManual(game, wrongPath, _ => { }, CancellationToken.None),
+    "A different game installation cannot receive the bundle");
+Check(wrongPath.LoadCalls == 0, "Mismatched paths stop before native loading");
+FakeManualRuntime multiple = new() { Games = call => call == 1 ? [] : [target, target with { Id = 124 }] };
+Reject(() => LaunchSession.RunManual(game, multiple, _ => { }, CancellationToken.None),
+    "Ambiguous multiple game processes are rejected");
+FakeManualRuntime otherLoader = new() { Loader = () => true };
+Reject(() => LaunchSession.RunManual(game, otherLoader, _ => { }, CancellationToken.None),
+    "Another XXMI prevents waiting and loading");
+int loaderQueries = 0;
+FakeManualRuntime lateLoader = new() { Loader = () => ++loaderQueries > 1 };
+Reject(() => LaunchSession.RunManual(game, lateLoader, _ => { }, CancellationToken.None),
+    "Another XXMI started while waiting stops this session");
+FakeManualRuntime exited = new() { Games = call => call == 1 ? [] : [target], Exited = () => true };
+Reject(() => LaunchSession.RunManual(game, exited, _ => { }, CancellationToken.None),
+    "A game exiting before injection is not loaded");
+Check(exited.LoadCalls == 0, "Exited process cannot invoke the injector");
+int exitQueries = 0;
+FakeManualRuntime exitDuringLoad = new()
+    { Games = call => call == 1 ? [] : [target], Exited = () => ++exitQueries > 1 };
+Reject(() => LaunchSession.RunManual(game, exitDuringLoad, _ => { }, CancellationToken.None),
+    "A game exiting during loader confirmation does not report success");
+FakeManualRuntime failedLoad = new()
+    { Games = call => call == 1 ? [] : [target], LoadError = new IOException("loader failed") };
+Reject(() => LaunchSession.RunManual(game, failedLoad, _ => { }, CancellationToken.None),
+    "Native loader failures propagate without automatic retry");
+Check(failedLoad.LoadCalls == 1 && failedLoad.WaitCalls == 0, "A failing injector is called only once");
+FakeManualRuntime noGame = new();
+try
+{
+    LaunchSession.RunManual(game, noGame, _ => { }, CancellationToken.None,
+        processTimeout: TimeSpan.Zero);
+    throw new InvalidOperationException("Missing process timeout");
+}
+catch (TimeoutException) { checks.Add("Waiting for a game has a bounded timeout without loading"); }
+FakeManualRuntime noConfirmation = new() { Games = call => call == 1 ? [] : [target] };
+try
+{
+    LaunchSession.RunManual(game, noConfirmation, _ => { }, CancellationToken.None,
+        loadTimeout: TimeSpan.Zero);
+    throw new InvalidOperationException("Missing load timeout");
+}
+catch (TimeoutException) { checks.Add("Waiting for EFMI confirmation has a separate bounded timeout"); }
+using (CancellationTokenSource cancelled = new())
+{
+    cancelled.Cancel();
+    FakeManualRuntime cancelledRuntime = new();
+    try
+    {
+        LaunchSession.RunManual(game, cancelledRuntime, _ => { }, cancelled.Token);
+        throw new InvalidOperationException("Missing pre-cancellation");
+    }
+    catch (OperationCanceledException) { Check(cancelledRuntime.FindCalls == 0, "Pre-cancellation does not query or load a game"); }
+}
+using (CancellationTokenSource cancellation = new())
+{
+    FakeManualRuntime waiting = new();
+    try
+    {
+        LaunchSession.RunManual(game, waiting, _ => cancellation.Cancel(), cancellation.Token);
+        throw new InvalidOperationException("Missing waiting cancellation");
+    }
+    catch (OperationCanceledException) { Check(waiting.LoadCalls == 0, "Cancelling manual waiting never loads or kills a process"); }
+}
+using (CancellationTokenSource cancellation = new())
+{
+    FakeManualRuntime loading = new() { Games = call => call == 1 ? [] : [target] };
+    try
+    {
+        LaunchSession.RunManual(game, loading, _ => { }, cancellation.Token, phase =>
+        {
+            if (phase == "phase=game-detected") cancellation.Cancel();
+        });
+        throw new InvalidOperationException("Missing pre-load cancellation");
+    }
+    catch (OperationCanceledException) { Check(loading.LoadCalls == 0, "Cancellation after detecting a game still prevents native loading"); }
+}
+using (CancellationTokenSource cancellation = new())
+{
+    FakeManualRuntime confirming = new()
+    {
+        Games = call => call == 1 ? [] : [target],
+        Confirmation = () => { cancellation.Cancel(); return true; },
+    };
+    List<string> cancelledPhases = [];
+    try
+    {
+        LaunchSession.RunManual(game, confirming, _ => { }, cancellation.Token, cancelledPhases.Add);
+        throw new InvalidOperationException("Missing confirmation cancellation");
+    }
+    catch (OperationCanceledException)
+    {
+        Check(!cancelledPhases.Contains("phase=efmi-loaded"),
+            "Cancellation during native confirmation cannot log a successful load");
+    }
+}
+int finalExitQueries = 0;
+FakeManualRuntime exitAtConfirmation = new()
+    { Games = call => call == 1 ? [] : [target], Exited = () => ++finalExitQueries >= 3 };
+List<string> exitPhases = [];
+Reject(() => LaunchSession.RunManual(game, exitAtConfirmation, _ => { }, CancellationToken.None, exitPhases.Add),
+    "A game exiting at the moment of confirmation does not report success");
+Check(!exitPhases.Contains("phase=efmi-loaded"), "Exit detection wins over a stale native success result");
+FakeManualRuntime deniedQuery = new()
+{
+    Games = call => call == 1 ? [] : throw new Win32Exception(5, "limited query denied"),
+};
+try
+{
+    LaunchSession.RunManual(game, deniedQuery, _ => { }, CancellationToken.None);
+    throw new InvalidOperationException("Missing denied-query failure");
+}
+catch (Win32Exception error) when (error.NativeErrorCode == 5)
+{
+    Check(deniedQuery.LoadCalls == 0, "Denied process metadata does not fall back to unverified loading");
+}
+FakeManualRuntime partialQuery = new()
+{
+    Games = call => call == 1 ? [] : throw new Win32Exception(299, "limited query incomplete"),
+};
+try
+{
+    LaunchSession.RunManual(game, partialQuery, _ => { }, CancellationToken.None);
+    throw new InvalidOperationException("Missing partial-query failure");
+}
+catch (Win32Exception error) when (error.NativeErrorCode == 299)
+{
+    Check(partialQuery.LoadCalls == 0, "Unresolved process metadata cannot bypass path checks");
+}
+Check(File.ReadAllBytes(gamePath).SequenceEqual(executable),
+    "Manual workflow tests leave all fixture game bytes unchanged");
 
 List<LibraryFile> libraries = [];
 foreach (string name in new[] { "3dmloader.dll", "d3d11.dll", "d3dcompiler_47.dll" })
@@ -117,6 +257,27 @@ void WriteManifest(StandaloneManifest value) =>
 WriteManifest(manifest);
 StandalonePackage package = new(bundle);
 Check(package.Validate().Libraries.Length == 3, "Standalone manifest requires all three official libraries");
+Check(ShaderCachePathGuard.MaximumPathLength == 259 &&
+    ShaderCachePathGuard.PredictCachePath(Path.Combine(bundle, "test.hlsl")).EndsWith("test.cs_5_0.ffffffff.bin"),
+    "Cache path budget reserves profile and eight hex compile-flag digits within the upstream buffer");
+string longShaderDirectory = Path.Combine(bundle, "EFMI", "Core", "Shaders");
+Directory.CreateDirectory(longShaderDirectory);
+int shaderNameLength = 250 - longShaderDirectory.Length - 1 - ".hlsl".Length;
+if (shaderNameLength < 1 || shaderNameLength > 220) throw new InvalidOperationException("Use a shorter test output directory.");
+string longShader = Path.Combine(longShaderDirectory, new string('x', shaderNameLength) + ".hlsl");
+File.WriteAllText(longShader, "// This valid-length source produces an overlong cache filename.");
+ShaderCachePathRisk? risk = ShaderCachePathGuard.FindLongest(package.EfmiDirectory);
+Check(longShader.Length == 250 && risk?.Source == longShader && risk.Length > 259,
+    "An HLSL path under MAX_PATH can still overflow after adding the cache suffix");
+Reject(() => package.Validate(), "The package refuses overlong cache paths before loading any runtime DLL");
+File.Delete(longShader);
+string safeShader = Path.Combine(longShaderDirectory, "safe.hlsl");
+File.WriteAllText(safeShader, "// short shader fixture");
+Check(package.Validate().Libraries.Length == 3, "A short package remains valid without altering library files");
+ShaderCachePathGuard.Validate(longShaderDirectory);
+Check(File.ReadAllText(safeShader) == "// short shader fixture",
+    "Path validation does not rewrite shader source, cache or timestamps");
+File.Delete(safeShader);
 File.WriteAllBytes(package.D3dPath, [4]);
 Reject(() => package.Validate(), "Changed DLL bytes cannot be loaded");
 File.WriteAllBytes(package.D3dPath, [1, 2, 3]);
@@ -144,3 +305,26 @@ if (args.Length > 1)
 File.WriteAllText(Path.Combine(fixture, "test-report.json"), JsonSerializer.Serialize(
     new { checks, gameStarted = false, liveInstallationModified = false }, StandalonePackage.JsonOptions));
 Console.WriteLine($"Standalone launcher checks passed: {checks.Count}. No game was started.");
+
+sealed class FakeManualRuntime : IManualLaunchRuntime
+{
+    public Func<int, GameProcess[]> Games { get; init; } = _ => [];
+    public Func<bool> Loader { get; init; } = () => false;
+    public Func<bool> Exited { get; init; } = () => false;
+    public Func<bool> Confirmation { get; init; } = () => true;
+    public Exception? LoadError { get; init; }
+    public int FindCalls { get; private set; }
+    public int LoadCalls { get; private set; }
+    public int LoadedProcess { get; private set; }
+    public int WaitCalls { get; private set; }
+    public GameProcess[] FindGames() => Games(++FindCalls);
+    public bool OtherLoaderRunning() => Loader();
+    public bool HasExited(int processId) => Exited();
+    public void Load(int processId)
+    {
+        LoadCalls++;
+        LoadedProcess = processId;
+        if (LoadError is not null) throw LoadError;
+    }
+    public bool WaitOnce() { WaitCalls++; return Confirmation(); }
+}

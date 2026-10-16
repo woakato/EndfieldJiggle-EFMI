@@ -44,6 +44,7 @@ public sealed class OutfitAdapterStore
     private readonly string modsRoot;
 
     public string Root => root;
+    public bool IsInEfmiModsTree => IsWithinOrSame(modsRoot, root);
     public bool HasRestorableBackup => EnumerateAppliedBackups().Any();
 
     public OutfitAdapterStore(string outfitDirectory, string runtimeDirectory)
@@ -62,9 +63,9 @@ public sealed class OutfitAdapterStore
         EnsureUnlinked(modsRoot);
         if (!Path.GetFileName(modsRoot).Equals("Mods", StringComparison.OrdinalIgnoreCase) ||
             !Directory.Exists(root) || !Directory.Exists(modsRoot) ||
-            !IsWithin(modsRoot, root) || SamePath(root, runtime) ||
+            SamePath(root, runtime) ||
             IsWithin(runtime, root) || IsWithin(root, runtime))
-            throw new InvalidDataException("Select an existing outfit directory inside this EFMI Mods folder, separate from the runtime.");
+            throw new InvalidDataException("Select an existing outfit source directory separate from the EFMI runtime.");
         ValidateRuntime();
     }
 
@@ -100,7 +101,7 @@ public sealed class OutfitAdapterStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedFingerprint);
         EnsureProcesses(requireStopped);
-        if (!requireStopped && IsDisabled(Path.GetRelativePath(modsRoot, root)))
+        if (!requireStopped && IsInEfmiModsTree && IsDisabled(Path.GetRelativePath(modsRoot, root)))
             throw new InvalidOperationException("This outfit is disabled. Re-enable it and restart the loader before hot adaptation.");
         OutfitAdapterInspection inspection = Inspect();
         if (inspection.AlreadyAdapted)
@@ -228,7 +229,7 @@ public sealed class OutfitAdapterStore
     public void Restore(bool requireStopped = true)
     {
         EnsureProcesses(requireStopped);
-        if (!requireStopped && IsDisabled(Path.GetRelativePath(modsRoot, root)))
+        if (!requireStopped && IsInEfmiModsTree && IsDisabled(Path.GetRelativePath(modsRoot, root)))
             throw new InvalidOperationException("This outfit is disabled. Re-enable it and restart the loader before hot restore.");
         string? backup = EnumerateAppliedBackups().OrderByDescending(Path.GetFileName, StringComparer.Ordinal).FirstOrDefault();
         if (backup is null)
@@ -683,10 +684,11 @@ public sealed class OutfitAdapterStore
             section.Name.StartsWith("CommandListBindPass", StringComparison.OrdinalIgnoreCase) &&
             Regex.IsMatch(section.Name, @"^CommandListBindPass(?:[1-9]|1[0-2])$",
                 RegexOptions.IgnoreCase));
+        int expectedExclusions = RuntimeSettingsStore.ReviewedPassCount(inis["Passes.ini"].Text);
         if (passCount != 12 || Regex.Matches(inis["Passes.ini"].Text,
                 @"(?m)^\s*if\s+!\$outfit_seen\s*&&\s*INDEX_COUNT\s*>=\s*3\b",
-                RegexOptions.IgnoreCase).Count != 12)
-            throw new InvalidDataException("Runtime Passes.ini does not have all 12 reviewed outfit exclusions.");
+                RegexOptions.IgnoreCase).Count != expectedExclusions)
+            throw new InvalidDataException("Runtime Passes.ini does not have all reviewed outfit exclusions.");
 
         for (int program = 1; program <= 12; program++)
         {
@@ -876,6 +878,8 @@ public sealed class OutfitAdapterStore
         Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
             .Equals(Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
                 StringComparison.OrdinalIgnoreCase);
+    private static bool IsWithinOrSame(string parent, string path) =>
+        SamePath(parent, path) || IsWithin(parent, path);
     private static bool IsWithin(string parent, string path) =>
         path.StartsWith(Path.GetFullPath(parent).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar,
             StringComparison.OrdinalIgnoreCase);

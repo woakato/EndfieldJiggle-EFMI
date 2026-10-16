@@ -1,5 +1,42 @@
 # Changelog
 
+## v0.2.3 - 2026-10-16
+
+- Added the current-game original skin color program to the touch deformation
+  pipeline, synchronizing color with prepass and outline. Kept native material
+  instructions and corrected zero-displacement/large-coordinate surface frames.
+- Flattened Mod and drop-in archives: shaders and runtime INIs are at ZIP root.
+  Drop-in adds an optional Configurator directory; standalone retains EFMI/Mods.
+- Updated the embedded installer and configurator for the thirteen-program
+  runtime, flat archives, and in-place upgrades/restores in version-named folders.
+- Included the normal standalone manual-official-launcher and cache-path fixes.
+  Kept no-touch diagnostics separate from the black-surface repair.
+- Kept the original twelve outfit callbacks; new color coverage is for native
+  geometry, not a claim of new third-party outfit compatibility.
+- Before packaging, the skin runtime passed 226 static/GPU/loader checks and
+  102 captured-vertex checks. The user accepted it for release. This does not
+  establish all-character, all-outfit or standalone startup compatibility.
+
+## v0.2.2 Manual Official Launcher Revision - 2026-10-15
+
+- Diagnosed a post-load crash caused by deeply nested extraction paths overflowing
+  the upstream fixed-size shader-cache filename buffer. Added a read-only path
+  preflight before runtime loading and short extraction-directory guidance.
+- Fixed the reported Windows 299/5 failure in the launcher path check: use
+  QueryFullProcessImageNameW and GetExitCodeProcess with limited query rights,
+  not Process.MainModule or module enumeration. Still refuse unverifiable targets.
+- Replaced direct game execution in both standalone bundles with bounded waiting
+  for a game launched by the user through the official launcher.
+- Kept the existing upstream loading interface and official runtime DLLs unchanged.
+  No authentication, game security or anti-cheat components are modified.
+- Matched the selected game path and rejected existing or ambiguous game processes,
+  concurrent XXMI sessions and inaccessible targets before loading.
+- Removed automatic elevation/relaunch. Added cancellation, separate process/load
+  timeouts, launcher phase logs and explicit manual DirectX 11 selection guidance.
+- Diagnostic revision 3 retains revision 2 GPU telemetry and bounded logging,
+  adding a launch-stage summary. A loaded DLL is not a verified touch result.
+- Isolated tests do not establish compatibility with the updated live game.
+
 ## v0.2.2 Standalone Bundle - 2026-10-12
 
 - Fixed Windows error 740 when the game requires administrator privileges:
