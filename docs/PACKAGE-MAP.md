@@ -1,5 +1,28 @@
 # Package Identity and Maintenance Status
 
+## Published v0.2.3 Replacement
+
+The complete outfit-repair bundles replaced the original v0.2.3 assets on
+October 17, 2026 at 00:02:37 +08:00, following the user's explicit acceptance.
+Release id remains `414970104`; the release title is now
+`v0.2.3 原皮与换装黑块修复`. The source commit and updated v0.2.3 tag are
+`537077c4b607f6577504dcb02852fa303bb129a6`. Main subsequently records this
+publication ledger in a separate documentation commit.
+
+All eight final asset SHA-256 values match the publication manifest, including
+the three complete archives identified below. Their bytes are identical to
+the delivered bundles. The source archive contains 144 files; all 112 embedded
+standalone implementation sources agree after line-ending normalization.
+The standalone's bundled source snapshot predates the final publication notes;
+its implementation matches the published source.
+
+GitHub's latest stable release API confirms v0.2.3. All nine v0.2.2 assets retain
+their previous IDs and digests. No diagnostic package or live installation was
+changed. All eight original v0.2.3 attachments were backed up before replacement.
+Final evidence, relative to the parent project:
+`reports/publication/v0.2.3/outfit-complete-20261016/publication-receipt.json`.
+The earlier local-delivery and candidate receipts remain historical records.
+
 ## Complete Outfit Repair Packages
 
 After receiving the complete bundles, the user explicitly accepted publishing
