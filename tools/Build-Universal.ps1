@@ -5,6 +5,9 @@ $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path -LiteralPath "$PSScriptRoot\..").Path
 Import-Module (Join-Path $PSScriptRoot 'OutfitRuntime.Common.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Universal.Common.psm1') -Force
+if ([IO.File]::ReadAllText((Join-Path $root 'runtime\Universal.ini')) -match 'global \$input_profile = [23]') {
+    throw 'Use Build-UnifiedInputCandidate.ps1 for the current input profile; this historical builder preserves the old solver.'
+}
 $parentPath = Join-Path $root 'reports\characters-build\build-report.json'
 $accepted = '8A60B7D34B59ECE20716377ABE20F25EB506CF92AF722E4B7B2204DAD29AC0D2'
 if ((Get-FileHash -LiteralPath $parentPath).Hash -cne $accepted) {

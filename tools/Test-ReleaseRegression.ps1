@@ -53,7 +53,19 @@ RejectBridge $runtime $passes ($outfits.Replace('hash = 1479b2b594b9c91a','hash 
 RejectBridge $runtime $passes ($outfits.Replace('allow_duplicate_hash = true','filter_index = 999'))
 RejectBridge ($runtime.Replace(' || ($ui_mouse && !$drag) ||',' || $ui_mouse ||')) $passes $outfits
 $checks += 5
-if ($runtime -notmatch '(?m)^global \$enabled = 0\r?$') { throw 'The release must retain default-off startup.' }
+if ($runtime -match '(?m)^global \$input_profile = 3\r?$') {
+    foreach ($required in @(
+        'global $enabled = 1', 'key = no_ctrl no_shift alt VK_LBUTTON',
+        "[KeyToggle]`nkey = ctrl shift no_alt VK_F9",
+        "[CommandListToggleTouch]`n`$enabled = !`$enabled`n`$diagnostic = 0`n`$notice_until = 0",
+        'run = CommandListFrameCursor', 'x241 = $drag && $pick_drag', 'y241 = 0', '    $pick_drag = $drag'
+    )) {
+        if (!$runtime.Replace("`r`n","`n").Contains($required)) { throw "Incomplete unified input profile: $required" }
+    }
+    if ($runtime.Contains('[KeyWorldCursorMapping]')) { throw 'Unified input must not require a scene toggle.' }
+} elseif ($runtime -notmatch '(?m)^global \$enabled = 0\r?$') {
+    throw 'Legacy releases must retain default-off startup.'
+}
 if ($runtime -notmatch '(?m)^key = VK_LBUTTON\r?$') { throw 'Mouse navigation must work with custom chords.' }
 if ($outfits -notmatch 'vs-t119 = ref ResourceSavedOutfitVsControl') { throw 'Outfit draws must restore foreign SRVs.' }
 $checks += 3

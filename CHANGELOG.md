@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.2.4 - 2026-10-17
+
+- Unified character-menu and world controls: hold Alt plus left mouse to drag,
+  release the mouse button to let go, and click again to select a new surface.
+- Enabled touch at startup without a TOUCH ON banner. Ctrl+Shift+F9 toggles
+  touch, F7 forces it off, and F8 controls optional diagnostics (all with Ctrl+Shift).
+  The configurator can disable startup touch and restores the same defaults.
+- Synchronized the cursor, viewport and held-input sample with the picker.
+  Restored the original press-only solver so mouse release cannot retain the
+  previous upper-body anchor when selecting a lower point.
+- The user confirmed the corrected installed build works. Offline checks include
+  5,760 GPU assertions; this does not establish an all-character/outfit matrix.
+- Updated all three installation archives, the embedded installer and sources,
+  retaining the accepted native/outfit rendering rules and original picker caches.
+
 ## v0.2.3 - 2026-10-16
 
 - Added pattern-only outfit preparation before EFMI replacement draws, plus

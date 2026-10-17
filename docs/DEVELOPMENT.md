@@ -56,6 +56,15 @@ HLSL 片段可以使用 Windows SDK 的 FXC 编译，头文件搜索路径需要
 
 ## 为什么不能完整重建
 
+v0.2.4 使用 `Build-UnifiedInputCandidate.ps1` 从已验证的 v0.2.3 完整运行时
+生成输入修订；原始求解器、拾取程序及缓存不变。将该报告传给
+`Build-FlatRelease.ps1 -Version v0.2.4`，生成纯 Mod、drop-in 和内置安装文件的配置器。
+`Build-Standalone.ps1` 需显式指定 `-Version v0.2.4`、当前 drop-in 的
+`-ExpectedDropInSha256` 和空 `-DropInRuntimePrefix ''`，继续使用下述固定官方依赖。
+可传入 `-SourceCommit <40位提交>`，让独立版附带与发布标签一致的 Git 源码快照，
+排除工作区中的未提交文件。新版本的安装流程和测试分别记录在
+[使用说明](USAGE.md)与[输入验证记录](UNIFIED-ALT-INPUT.md)。
+
 `Build-Universal.ps1` 与 `Universal.Common.psm1` 保留完整本地版本的
 证据校验流程，依赖未公开的父构建报告、原生接口适配结果和匹配缓存。
 `v0.1.0-source` 源码快照不能独立生成可安装版本；工具不会下载或自动补齐缺失资源。

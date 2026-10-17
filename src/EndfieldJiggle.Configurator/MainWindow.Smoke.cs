@@ -55,6 +55,13 @@ public partial class MainWindow
         outfitStore.Restore(requireStopped: false);
         await InspectOutfitAsync();
         TouchSettings originalSettings = store!.Read().Settings;
+        SetControls(TouchSettings.Default);
+        if (ReadControls() != TouchSettings.Default || StartupEnabledCheck.IsChecked != true ||
+            DragAltCheck.IsChecked != true || !DragAltCheck.IsEnabled)
+            throw new InvalidDataException("Default-on Alt plus mouse controls failed.");
+        SetControls(TouchSettings.Default with { DefaultEnabled = false });
+        if (ReadControls().DefaultEnabled)
+            throw new InvalidDataException("Startup checkbox cannot disable touch.");
         TouchSettings editedSettings = originalSettings with { Drag = new("VK_LBUTTON") };
         SetControls(editedSettings);
         if (ReadControls() != editedSettings) throw new InvalidDataException("UI binding roundtrip failed.");
@@ -99,6 +106,7 @@ public partial class MainWindow
             embeddedInstaller = true, installedFiles,
             screenshots, stateRecovery = true, outfitApplyRestore = true, installerRestore = true,
             hotSettingsSaveRestore = true, profiles = true, modLibrary = true, selfConflictsExcluded = true,
+            defaultOnAltMouseControls = true, startupCanBeDisabled = true,
             liveInstallationModified = false, inGameVerified = false,
         }, new JsonSerializerOptions { WriteIndented = true }));
     }

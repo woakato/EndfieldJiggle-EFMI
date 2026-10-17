@@ -7,6 +7,7 @@ param(
     [string]$OutputDirectory,
     [string]$RuntimeLicenseDirectory,
     [string]$NoticeCacheDirectory,
+    [ValidatePattern('^[0-9a-fA-F]{40}$')][string]$SourceCommit,
     [ValidatePattern('^v\d+\.\d+\.\d+$')][string]$Version = 'v0.2.2',
     [ValidatePattern('^[0-9A-Fa-f]{64}$')][string]$ExpectedDropInSha256 = '88433A0402C9E85C1D3790632C83D020DCF4699A90A7358D11E47B9789FD57E3',
     [AllowEmptyString()][string]$DropInRuntimePrefix = 'EndfieldJiggleEFMI/'
@@ -154,23 +155,36 @@ $manifest = [ordered]@{
     ($manifest | ConvertTo-Json -Depth 8) + "`n", $encoding)
 [IO.File]::WriteAllText((Join-Path $product 'Start.cmd'),
     "@echo off`r`nstart `"`" `"%~dp0EndfieldJiggleLauncher.exe`" --launch`r`n", [Text.ASCIIEncoding]::new())
-$sources = Join-Path $build 'project-source'
-New-Item -ItemType Directory -Path $sources -Force | Out-Null
-foreach ($name in @('src','tools','runtime','shaders','tests','docs','third_party')) {
-    Copy-Item -LiteralPath (Join-Path $root $name) -Destination $sources -Recurse
-}
-foreach ($name in @('LICENSE','README.md','CHANGELOG.md','DISCLAIMER.md','THIRD-PARTY-NOTICES.md',
-        'Directory.Build.props','Directory.Build.targets','.gitignore')) {
-    Copy-Item -LiteralPath (Join-Path $root $name) -Destination $sources
-}
-if (@(Get-ChildItem -LiteralPath $sources -Recurse -File | Where-Object Extension -In @('.exe','.dll','.bin','.pdb','.shdr')).Count) {
-    throw 'The project source snapshot must not contain binary dependencies or shader captures.'
-}
 $sourceDirectory = Join-Path $product 'Sources'
 New-Item -ItemType Directory -Path $sourceDirectory -Force | Out-Null
-[IO.Compression.ZipFile]::CreateFromDirectory($sources,
-    (Join-Path $sourceDirectory "EndfieldJiggleEFMI-$version-source.zip"),
-    [IO.Compression.CompressionLevel]::Optimal, $false)
+$sourceArchive = Join-Path $sourceDirectory "EndfieldJiggleEFMI-$version-source.zip"
+if ($SourceCommit) {
+    Push-Location $root
+    try {
+        $sourcePaths = @(& git ls-tree -r --name-only $SourceCommit)
+        if ($LASTEXITCODE -ne 0 -or !$sourcePaths.Count) { throw 'Cannot enumerate the release source commit.' }
+        if (@($sourcePaths | Where-Object {
+            $_ -match '^(reports|build|dist|\.git)/|\.(dll|exe|bin|pdb|shdr|zip)$|(^|/)(\.env|AGENTS\.md)'
+        }).Count) { throw 'The source commit includes private or binary material.' }
+        & git archive --format=zip "--output=$sourceArchive" $SourceCommit
+        if ($LASTEXITCODE -ne 0) { throw 'Release source export failed.' }
+    } finally { Pop-Location }
+} else {
+    $sources = Join-Path $build 'project-source'
+    New-Item -ItemType Directory -Path $sources -Force | Out-Null
+    foreach ($name in @('src','tools','runtime','shaders','tests','docs','third_party')) {
+        Copy-Item -LiteralPath (Join-Path $root $name) -Destination $sources -Recurse
+    }
+    foreach ($name in @('LICENSE','README.md','CHANGELOG.md','DISCLAIMER.md','THIRD-PARTY-NOTICES.md',
+            'Directory.Build.props','Directory.Build.targets','.gitignore')) {
+        Copy-Item -LiteralPath (Join-Path $root $name) -Destination $sources
+    }
+    if (@(Get-ChildItem -LiteralPath $sources -Recurse -File | Where-Object Extension -In @('.exe','.dll','.bin','.pdb','.shdr')).Count) {
+        throw 'The project source snapshot must not contain binary dependencies or shader captures.'
+    }
+    [IO.Compression.ZipFile]::CreateFromDirectory($sources, $sourceArchive,
+        [IO.Compression.CompressionLevel]::Optimal, $false)
+}
 $smokeOutput = Join-Path $build 'smoke'
 $process = Start-Process -FilePath (Join-Path $product 'EndfieldJiggleLauncher.exe') `
     -ArgumentList '--smoke-test',('"' + $smokeOutput + '"') -WindowStyle Hidden -PassThru
@@ -198,7 +212,7 @@ $report = [ordered]@{
     schema=1; version=$version; packageDirectory=$product; archive=$zip
     launchWorkflow=$manifest.launchWorkflow
     archiveSha256=(Get-FileHash -LiteralPath $zip).Hash.ToLowerInvariant()
-    files=$files; dependencies=$manifest; originalModAndConfiguratorUnchanged=$true
+    files=$files; dependencies=$manifest; originalModAndConfiguratorUnchanged=$true; sourceCommit=$SourceCommit
     smokeReport=(Join-Path $smokeOutput 'smoke-report.json')
     liveInstallationModified=$false; inGameVerified=$false
 }

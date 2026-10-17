@@ -50,8 +50,10 @@ InstallationPreview preview = package.Preview(efmi);
 Check(!preview.IsUpgrade && preview.FileCount == (hasPreparation ? 15 : 14),
     "Fresh preview owns the complete reviewed runtime");
 InstallationResult installed = package.Install(preview, requireStopped: false);
-Check(new RuntimeSettingsStore(installed.RuntimeDirectory).Read().Settings.DefaultEnabled == false,
-    "Fresh installation starts disabled");
+bool unifiedInput = File.ReadAllText(Path.Combine(installed.RuntimeDirectory, "EndfieldJiggle.ini"))
+    .Contains("global $input_profile = 3", StringComparison.Ordinal);
+Check(new RuntimeSettingsStore(installed.RuntimeDirectory).Read().Settings.DefaultEnabled == unifiedInput,
+    "Fresh installation retains the package's startup default");
 Check(InstallablePackage.HasRestorableInstallation(installed.RuntimeDirectory) &&
       installed.BackupDirectory.StartsWith(Path.Combine(efmi, "EndfieldJiggleBackups")),
     "Recovery record and backups stay outside recursively loaded Mods");
@@ -152,16 +154,21 @@ if (args.Length > 1 && hasPreparation)
     legacyStore.Apply(changed, legacyStore.Read().Fingerprint, requireStopped: false);
     string oldPasses = Digest(Path.Combine(legacyStore.Root, "Passes.ini"));
     string oldOutfits = Digest(Path.Combine(legacyStore.Root, "Outfits.ini"));
+    string oldRuntime = Digest(Path.Combine(legacyStore.Root, "EndfieldJiggle.ini"));
+    string preparationPath = Path.Combine(legacyStore.Root, "OutfitPreparation.ini");
+    string? oldPreparation = File.Exists(preparationPath) ? Digest(preparationPath) : null;
     InstallationResult migrated = package.Install(package.Preview(legacyEfmi), requireStopped: false);
     Check(migrated.SettingsPreserved && new RuntimeSettingsStore(migrated.RuntimeDirectory).Read().Settings == changed &&
           File.Exists(Path.Combine(migrated.RuntimeDirectory, "OutfitPreparation.ini")),
-        "Fourteen-file installation upgrades with settings preserved and preparation installed");
+        "Previous installation upgrades with settings preserved and preparation installed");
     InstallablePackage.RestoreInstallation(migrated.RuntimeDirectory, requireStopped: false);
-    Check(!File.Exists(Path.Combine(migrated.RuntimeDirectory, "OutfitPreparation.ini")) &&
+    Check((oldPreparation is null ? !File.Exists(preparationPath) :
+              File.Exists(preparationPath) && Digest(preparationPath) == oldPreparation) &&
+          Digest(Path.Combine(legacyStore.Root, "EndfieldJiggle.ini")) == oldRuntime &&
           Digest(Path.Combine(legacyStore.Root, "Passes.ini")) == oldPasses &&
           Digest(Path.Combine(legacyStore.Root, "Outfits.ini")) == oldOutfits &&
           new RuntimeSettingsStore(legacyStore.Root).Read().Settings == changed,
-        "Migration restore removes only the added preparation and restores the old configured runtime");
+        "Migration restore recovers the prior runtime and its original preparation presence and bytes");
 }
 
 File.WriteAllText(Path.Combine(root, "test-report.json"), JsonSerializer.Serialize(new

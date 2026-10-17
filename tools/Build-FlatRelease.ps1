@@ -4,7 +4,7 @@ param(
     [Parameter(Mandatory)][string]$DotnetPath,
     [Parameter(Mandatory)][string]$OutputDirectory,
     [string]$PreviousModZipPath,
-    [ValidatePattern('^v\d+\.\d+\.\d+$')][string]$Version = 'v0.2.3'
+    [ValidatePattern('^v\d+\.\d+\.\d+$')][string]$Version = 'v0.2.4'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -13,8 +13,27 @@ Import-Module (Join-Path $PSScriptRoot 'Universal.Common.psm1') -Force
 $build = Assert-UniversalPath (Join-Path $root 'reports') ([IO.Path]::GetFullPath($OutputDirectory))
 if (Test-Path -LiteralPath $build) { throw 'Preserve previous release evidence.' }
 $runtimeReport = Get-Content -Raw -LiteralPath $RuntimeReportPath | ConvertFrom-Json
-$outfitReceiver = $runtimeReport.buildKind -ceq 'outfit-structural-receiver-candidate'
-if ($runtimeReport.buildKind -ceq 'structural-native-receiver-candidate' -or $outfitReceiver) {
+$unifiedInput = $runtimeReport.PSObject.Properties['kind'] -and
+    $runtimeReport.kind -ceq 'unified-alt-input-candidate'
+$outfitReceiver = $unifiedInput -or ($runtimeReport.PSObject.Properties['buildKind'] -and
+    $runtimeReport.buildKind -ceq 'outfit-structural-receiver-candidate')
+if ($unifiedInput) {
+    if (!$runtimeReport.nativePickerBytesAndTimesPreserved -or !$runtimeReport.defaultEnabled -or
+        $runtimeReport.dragKey -cne 'no_ctrl no_shift alt VK_LBUTTON' -or
+        $runtimeReport.toggleKey -cne 'ctrl shift no_alt VK_F9' -or
+        @($runtimeReport.changedRuntimeFiles).Count -ne 1 -or
+        $runtimeReport.changedRuntimeFiles[0] -cne 'EndfieldJiggle.ini') {
+        throw 'Use the accepted Alt-plus-mouse runtime with the original solver and pickers.'
+    }
+    foreach ($pair in @(
+        @('Passes.ini','104CBCB3C2614C1219670C8D598C72A90DEAED756F235D42EB072D9929C509ED'),
+        @('shaders\step_cs.cs_5_0.8000.bin','1F6AD269CE6165FF5718F85FB8A7979724BD57044B85EC5EC9FC41AD13F11C2C')
+    )) {
+        if (@($runtimeReport.files | Where-Object {
+            $_.path.Replace('/','\') -ceq $pair[0] -and $_.sha256 -ceq $pair[1]
+        }).Count -ne 1) { throw 'The accepted rendering rules and original solver must remain unchanged.' }
+    }
+} elseif ($runtimeReport.buildKind -ceq 'structural-native-receiver-candidate' -or $outfitReceiver) {
     if ($runtimeReport.surfaceRuleCount -ne 28 -or $runtimeReport.geometryRuleCount -ne 14 -or
         !$runtimeReport.legacyRulesPreserved -or !$runtimeReport.pickerBytesAndTimesPreserved -or
         @($runtimeReport.files | Where-Object {

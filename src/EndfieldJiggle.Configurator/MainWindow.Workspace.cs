@@ -171,8 +171,8 @@ public partial class MainWindow
 
     private void NoShiftDrag_Click(object sender, RoutedEventArgs e)
     {
-        SetBinding(new("VK_LBUTTON"), DragKeyCombo, DragCtrlCheck, DragShiftCheck, DragAltCheck);
-        FooterText.Text = "拖动已改为鼠标左键，尚未保存。第三方菜单键位未改动。";
+        SetBinding(TouchSettings.Default.Drag, DragKeyCombo, DragCtrlCheck, DragShiftCheck, DragAltCheck);
+        FooterText.Text = "拖动已改为 Alt+鼠标左键，尚未保存。";
     }
 
     private void RecordBinding_Click(object sender, RoutedEventArgs e)
@@ -180,6 +180,20 @@ public partial class MainWindow
         recordingBinding = (string)((Button)sender).Tag;
         FooterText.Text = "等待录入组合键；Esc 取消。";
         Keyboard.Focus((Button)sender);
+    }
+
+    private void Window_PreviewKeyUp(object sender, KeyEventArgs e)
+    {
+        Key key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (recordingBinding != "drag" || key is not (Key.LeftAlt or Key.RightAlt))
+            return;
+        KeyBinding binding = new("VK_MENU",
+            Ctrl: Keyboard.Modifiers.HasFlag(ModifierKeys.Control),
+            Shift: Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+        SetBinding(binding, DragKeyCombo, DragCtrlCheck, DragShiftCheck, DragAltCheck);
+        recordingBinding = null;
+        FooterText.Text = $"已录入 {binding.DisplayName}，尚未保存。";
+        e.Handled = true;
     }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -316,7 +330,7 @@ public partial class MainWindow
             if (dialog.ShowDialog(this) != true) return;
             string json = JsonSerializer.Serialize(new
             {
-                schema = 1, version = "0.2.3", runtime = store?.Root, efmi = EfmiPathBox.Text,
+                schema = 1, version = "0.2.4", runtime = store?.Root, efmi = EfmiPathBox.Text,
                 reloadBinding, efmiInput = EfmiInputDiagnostics.Read(EfmiPathBox.Text),
                 pendingSettings = ReadControls(), savedSettings = snapshot?.Settings,
                 conflicts, outfit = outfitStore?.Root, outfitSummary = OutfitSummaryText.Text,

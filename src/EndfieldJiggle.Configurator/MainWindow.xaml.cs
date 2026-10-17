@@ -22,6 +22,13 @@ public partial class MainWindow : Window
         ToggleKeyCombo.ItemsSource = StopKeyCombo.ItemsSource =
             DiagnosticKeyCombo.ItemsSource = TouchSettings.KeyboardOptions;
         DragKeyCombo.ItemsSource = TouchSettings.DragOptions;
+        DragKeyCombo.SelectionChanged += (_, _) =>
+        {
+            bool altKey = DragKeyCombo.SelectedItem is KeyBinding { Key: "VK_MENU" };
+            DragAltCheck.IsEnabled = !altKey;
+            if (altKey) DragAltCheck.IsChecked = false;
+        };
+        PreviewKeyUp += Window_PreviewKeyUp;
         foreach (ComboBox combo in new[] { ToggleKeyCombo, StopKeyCombo, DiagnosticKeyCombo, DragKeyCombo })
             combo.DisplayMemberPath = nameof(KeyBinding.DisplayName);
         RadiusSlider.ValueChanged += Physics_ValueChanged;
@@ -228,7 +235,7 @@ public partial class MainWindow : Window
             InstallResultText.Text = $"安装完成。\n备份：{result.BackupDirectory}\n" +
                 (result.SettingsPreserved ? "已保留原来的按键和强度。" : "已使用本版默认配置。");
             await OpenWorkspaceAsync(preview.EfmiDirectory, token);
-            SetStatus("0.2.3 已安装。", true);
+            SetStatus("0.2.4 已安装。", true);
         }, writing: true);
     }
 
@@ -329,13 +336,7 @@ public partial class MainWindow : Window
 
     private void Defaults_Click(object sender, RoutedEventArgs e)
     {
-        SetControls(new TouchSettings(
-            false,
-            new KeyBinding("VK_F8", Ctrl: true, Shift: true),
-            new KeyBinding("VK_F7", Ctrl: true, Shift: true),
-            new KeyBinding("VK_F9", Ctrl: true, Shift: true),
-            new KeyBinding("VK_LBUTTON", Shift: true),
-            new PhysicsSettings()));
+        SetControls(TouchSettings.Default);
         FooterText.Text = "默认值尚未保存。";
     }
 

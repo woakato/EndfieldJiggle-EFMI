@@ -226,8 +226,12 @@ public static class ModLibraryStore
         bool? alt = null;
         if (tokens.Length == 1 && tokens[0].ToLowerInvariant() is "shift" or "ctrl" or "alt")
         {
-            string primary = tokens[0].Equals("ctrl", StringComparison.OrdinalIgnoreCase) ? "VK_CONTROL" :
-                "VK_" + tokens[0].ToUpperInvariant();
+            string primary = tokens[0].ToLowerInvariant() switch
+            {
+                "ctrl" => "VK_CONTROL",
+                "alt" => "VK_MENU",
+                _ => "VK_SHIFT",
+            };
             binding = new(primary, null, null, null, "", 0, "", "");
             return true;
         }
@@ -267,7 +271,7 @@ public static class ModLibraryStore
         KeysEqual(touch.Key, candidate.Key) &&
         ModifierCanOverlap(touch.Ctrl, candidate.Ctrl) &&
         ModifierCanOverlap(touch.Shift, candidate.Shift) &&
-        ModifierCanOverlap(touch.Alt, candidate.Alt);
+        ModifierCanOverlap(touch.Key == "VK_MENU" || touch.Alt, candidate.Alt);
 
     private static bool IsShiftDragMenuOverlap(KeyBinding touch, IniBinding candidate) =>
         touch.Key.Equals("VK_LBUTTON", StringComparison.OrdinalIgnoreCase) &&
@@ -286,7 +290,11 @@ public static class ModLibraryStore
         string normalized = key.Trim();
         if (normalized.StartsWith("VK_", StringComparison.OrdinalIgnoreCase))
             normalized = normalized[3..];
-        return normalized.ToUpperInvariant();
+        return normalized.ToUpperInvariant() switch
+        {
+            "ALT" => "MENU",
+            var value => value,
+        };
     }
 
     private static bool IsShiftKey(string key) =>

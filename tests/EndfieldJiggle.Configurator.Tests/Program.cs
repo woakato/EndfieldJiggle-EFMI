@@ -110,12 +110,14 @@ RuntimeSettingsStore store = new(runtime);
 RuntimeSettingsSnapshot original = store.Read();
 bool includesOutfits = packageFiles.ContainsKey("Outfits.ini");
 bool includesPreparation = packageFiles.ContainsKey("OutfitPreparation.ini");
-Check(!original.Settings.DefaultEnabled &&
+bool unifiedInput = Encoding.UTF8.GetString(packageFiles["EndfieldJiggle.ini"].Bytes)
+    .Contains("global $input_profile = 3", StringComparison.Ordinal);
+Check(unifiedInput ? original.Settings == TouchSettings.Default : !original.Settings.DefaultEnabled &&
       original.Settings.Toggle == new KeyBinding("VK_F8", Ctrl: true, Shift: true) &&
       original.Settings.Stop == new KeyBinding("VK_F7", Ctrl: true, Shift: true) &&
       original.Settings.Diagnostic == new KeyBinding("VK_F9", Ctrl: true, Shift: true) &&
       original.Settings.Drag == new KeyBinding("VK_LBUTTON", Shift: true),
-    "Reader reflects the documented default-off settings");
+    "Reader preserves the selected package's documented input defaults");
 Check(packageFiles.Count == (includesPreparation ? 15 : includesOutfits ? 14 : 13) &&
       original.Settings.Physics == new PhysicsSettings(0.12m, 0.04m, 0.75m),
     "The configurator recognizes both native-only and outfit-enabled install payloads");
@@ -319,6 +321,29 @@ outfitStore.RestoreLast(requireStopped: false);
 Check(File.ReadAllText(Path.Combine(outfitRuntime, "Outfits.ini"))
       .Contains("&& !$ui_mouse &&", StringComparison.Ordinal),
     "The optional outfit input rule restores exactly");
+
+TouchSettings.Default.Validate();
+Check(TouchSettings.Default.Drag.IniValue == "no_ctrl no_shift alt VK_LBUTTON" &&
+      TouchSettings.Default.Drag.DisplayName == "Alt+鼠标左键" &&
+      TouchSettings.ParseBinding(TouchSettings.Default.Drag.IniValue, allowMouse: true) == TouchSettings.Default.Drag &&
+      TouchSettings.ParseBinding("no_ctrl no_shift VK_MENU", allowMouse: true) == new KeyBinding("VK_MENU"),
+    "Default Alt-plus-mouse chord roundtrips while previous primary-Alt settings remain readable");
+Reject(() => TouchSettings.ParseBinding("no_ctrl no_shift no_alt VK_MENU", allowMouse: true),
+    "Impossible Alt primary binding is rejected");
+Reject(() => (TouchSettings.Default with { Drag = new("VK_MENU", Alt: true) }).Validate(),
+    "Duplicate Alt primary and modifier is rejected");
+Check(SettingsProfile.Import(SettingsProfile.Export(TouchSettings.Default)) == TouchSettings.Default,
+    "Alt and default-on settings survive profile export/import");
+RuntimeApplyResult defaultsApply = store.Apply(TouchSettings.Default, store.Read().Fingerprint, requireStopped: false);
+Check(store.Read().Settings == TouchSettings.Default,
+    "Configurator saves the required Alt modifier and left mouse button");
+TouchSettings disabledStartup = TouchSettings.Default with { DefaultEnabled = false };
+store.Apply(disabledStartup, store.Read().Fingerprint, requireStopped: false);
+Check(store.Read().Settings == disabledStartup,
+    "Player can disable default-on startup while retaining the enable shortcut");
+store.RestoreLast(requireStopped: false);
+Check(store.Read().Settings == TouchSettings.Default, "Startup choice restores through the normal backup");
+if (defaultsApply.Changed) store.RestoreLast(requireStopped: false);
 
 Console.WriteLine($"PASS: {checks.Count} configurator checks.");
 Console.WriteLine($"Fixture: {testRoot}");

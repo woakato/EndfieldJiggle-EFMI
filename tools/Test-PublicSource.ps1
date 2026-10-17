@@ -16,8 +16,8 @@ Import-Module (Join-Path $PSScriptRoot 'Universal.Common.psm1') -Force
 $iniPath = Join-Path $root 'runtime\Universal.ini'
 $ini = [IO.File]::ReadAllText($iniPath)
 $sections = @(Read-OrderedIniSections $ini)
-if ($sections.Count -lt 10 -or $ini -notmatch '(?m)^global \$enabled = 0$') {
-    throw 'Missing native session sections or default-off state.'
+if ($sections.Count -lt 10 -or $ini -notmatch '(?m)^global \$enabled = 1$') {
+    throw 'Missing native session sections or default-on state.'
 }
 if ($ini -match '(?i)TextureOverrideCaptured|\$active_character|\$mesh_character|\$overview_primary') {
     throw 'Unexpected per-operator eligibility in universal template.'

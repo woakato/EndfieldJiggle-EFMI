@@ -142,7 +142,7 @@ public sealed class InstallablePackage
                 foreach (string name in files.Keys.Where(name => name.EndsWith(".ini", StringComparison.Ordinal)))
                     written[name] = Hash(File.ReadAllBytes(Inside(current.RuntimeDirectory, name)));
             }
-            InstallationReceipt receipt = new(1, "v0.2.3", current.RuntimeDirectory, session,
+            InstallationReceipt receipt = new(1, "v0.2.4", current.RuntimeDirectory, session,
                 files.Keys.Select(name => new InstalledFile(name,
                     Hash(File.ReadAllBytes(Inside(current.RuntimeDirectory, name))))).ToArray());
             byte[] receiptBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(receipt, JsonOptions));

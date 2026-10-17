@@ -1,7 +1,7 @@
 <Window x:Class="EndfieldJiggle.Configurator.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="EndfieldJiggle 0.2.3" Width="1120" Height="820"
+        Title="EndfieldJiggle 0.2.4" Width="1120" Height="820"
         MinWidth="880" MinHeight="680" WindowStartupLocation="CenterScreen"
         Background="#F2F4F5" AllowDrop="True" PreviewKeyDown="Window_PreviewKeyDown"
         DragOver="Window_DragOver" Drop="Window_Drop">
@@ -42,7 +42,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="EndfieldJiggle" FontSize="24" FontWeight="SemiBold"/>
-                    <TextBlock Text="EFMI · 0.2.3" Foreground="#58616B" Margin="14,7,0,0"/>
+                    <TextBlock Text="EFMI · 0.2.4" Foreground="#58616B" Margin="14,7,0,0"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                     <Button x:Name="OpenWorkspaceButton" Click="ChooseRuntime_Click" ToolTip="选择触摸 Mod、Mods 或 EFMI 目录">
@@ -155,7 +155,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <CheckBox x:Name="StartupEnabledCheck" Content="启动时开启触摸" VerticalAlignment="Center"/>
+                                <CheckBox x:Name="StartupEnabledCheck" Content="启动时开启触摸" IsChecked="True" VerticalAlignment="Center"/>
                                 <Button Grid.Column="1" Style="{StaticResource IconButton}" Click="ImportProfile_Click" ToolTip="导入参数配置">
                                     <TextBlock Text="&#xE8B5;" Style="{StaticResource Icon}"/>
                                 </Button>
@@ -179,7 +179,7 @@
                                     <RowDefinition Height="42"/>
                                     <RowDefinition Height="42"/>
                                 </Grid.RowDefinitions>
-                                <TextBlock Text="开关触摸" VerticalAlignment="Center"/>
+                                <TextBlock Text="触摸开关" VerticalAlignment="Center"/>
                                 <ComboBox x:Name="ToggleKeyCombo" Grid.Column="1" Margin="0,4,12,4"/>
                                 <CheckBox x:Name="ToggleCtrlCheck" Grid.Column="2" Content="Ctrl" VerticalAlignment="Center"/>
                                 <CheckBox x:Name="ToggleShiftCheck" Grid.Column="3" Content="Shift" VerticalAlignment="Center"/>
@@ -260,7 +260,7 @@
                             <TextBlock Text="&#xE72C;" Style="{StaticResource Icon}"/>
                         </Button>
                         <Button Content="默认值" Click="Defaults_Click"/>
-                        <Button Content="无 Shift 拖动" Click="NoShiftDrag_Click" ToolTip="仅修改待保存的拖动绑定为鼠标左键，不修改其它 Mod 的键位"/>
+                        <Button Content="恢复 Alt+左键" Click="NoShiftDrag_Click" ToolTip="恢复默认拖动键"/>
                         <Button x:Name="RestoreButton" Content="撤销上次保存" Click="Restore_Click" IsEnabled="False"/>
                         <Button x:Name="ApplyButton" Content="保存配置" Click="Apply_Click" IsEnabled="False" Style="{StaticResource PrimaryButton}"/>
                     </WrapPanel>
@@ -418,7 +418,7 @@
                     <TextBlock Text="&#xE711;" Style="{StaticResource Icon}"/>
                 </Button>
             </Grid>
-            <TextBlock x:Name="FooterText" Foreground="#58616B" TextWrapping="Wrap" Text="0.2.3"/>
+            <TextBlock x:Name="FooterText" Foreground="#58616B" TextWrapping="Wrap" Text="0.2.4"/>
         </StackPanel>
     </Grid>
 </Window>

@@ -9,7 +9,9 @@ namespace EndfieldJiggle.Configurator.Core;
 public sealed record KeyBinding(string Key, bool Ctrl = false, bool Shift = false, bool Alt = false)
 {
     public string IniValue =>
-        $"{(Ctrl ? "" : "no_")}ctrl {(Shift ? "" : "no_")}shift {(Alt ? "" : "no_")}alt {Key}";
+        Key == "VK_MENU"
+            ? $"{(Ctrl ? "" : "no_")}ctrl {(Shift ? "" : "no_")}shift {Key}"
+            : $"{(Ctrl ? "" : "no_")}ctrl {(Shift ? "" : "no_")}shift {(Alt ? "" : "no_")}alt {Key}";
 
     public string DisplayName
     {
@@ -17,6 +19,7 @@ public sealed record KeyBinding(string Key, bool Ctrl = false, bool Shift = fals
         {
             string key = Key switch
             {
+                "VK_MENU" => "Alt",
                 "VK_LBUTTON" => "鼠标左键",
                 "VK_RBUTTON" => "鼠标右键",
                 "VK_MBUTTON" => "鼠标中键",
@@ -45,12 +48,21 @@ public sealed record TouchSettings(
     KeyBinding Drag,
     PhysicsSettings Physics)
 {
+    public static TouchSettings Default { get; } = new(
+        true,
+        new("VK_F9", Ctrl: true, Shift: true),
+        new("VK_F7", Ctrl: true, Shift: true),
+        new("VK_F8", Ctrl: true, Shift: true),
+        new("VK_LBUTTON", Alt: true),
+        new());
+
     private static readonly string[] MouseKeys =
         ["VK_LBUTTON", "VK_RBUTTON", "VK_MBUTTON", "VK_XBUTTON1", "VK_XBUTTON2"];
 
     public static IReadOnlyList<KeyBinding> KeyboardOptions { get; } = BuildKeyboardOptions();
     public static IReadOnlyList<KeyBinding> DragOptions { get; } =
-        MouseKeys.Select(key => new KeyBinding(key)).Concat(KeyboardOptions).ToArray();
+        new[] { new KeyBinding("VK_MENU") }
+            .Concat(MouseKeys.Select(key => new KeyBinding(key))).Concat(KeyboardOptions).ToArray();
 
     public void Validate()
     {
@@ -99,6 +111,8 @@ public sealed record TouchSettings(
             "ctrl" or "no_ctrl" or "shift" or "no_shift" or "alt" or "no_alt" or "no_modifiers")).ToArray();
         if (keys.Length != 1)
             throw new InvalidDataException("INI 中的按键定义不受支持。");
+        if (keys[0] == "VK_MENU" && (alt || tokens.Contains("no_alt") || noModifiers))
+            throw new InvalidDataException("Alt 作为拖动键时不能同时限定 Alt 修饰键。");
 
         foreach ((string positive, string negative) in new[]
                  {
@@ -124,7 +138,8 @@ public sealed record TouchSettings(
             key is not ("VK_F10" or "VK_F11");
         bool navigation = key is "VK_HOME" or "VK_END" or "VK_INSERT" or "VK_DELETE" or "VK_PRIOR" or "VK_NEXT";
         bool mouse = allowMouse && MouseKeys.Contains(key, StringComparer.Ordinal);
-        if (!keyboard && !function && !navigation && !mouse)
+        bool altKey = allowMouse && key == "VK_MENU" && !binding.Alt;
+        if (!keyboard && !function && !navigation && !mouse && !altKey)
             throw new InvalidDataException($"不支持按键：{key}");
     }
 

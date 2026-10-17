@@ -20,7 +20,12 @@
 > 已安装 XXMI / EFMI：下载拖放包。未安装 XXMI Launcher：下载独立便携包。
 > 源码归档不是游戏安装包。
 
-v0.2.3 于 2026-10-16 更新为通用渲染通道修复：根据共用的原生坐标变换同步
+v0.2.4 于 2026-10-17 同步角色界面与大世界的触摸输入：默认开启，
+按住 `Alt+鼠标左键` 拖动，松开左键释放，`Ctrl+Shift+F9` 切换开关。
+修复重复抓取仍保留上一次位置的问题，启动时不显示 `TOUCH ON`。
+三个安装包与配置器内嵌安装文件同步更新；旧版本用户请下载 v0.2.4 升级。
+
+本版保留 2026-10-16 的通用渲染通道修复：根据共用的原生坐标变换同步
 颜色、深度与描边，处理其他原皮仍有触摸黑块的问题。三个安装包和配置器内嵌文件同步更新，
 已下载当天较早版本的用户需要重新下载。
 完整包同时包含换装绘制前的通用通道识别，配置器支持全部十五个运行文件，
@@ -37,7 +42,7 @@ v0.2.3 于 2026-10-16 更新为通用渲染通道修复：根据共用的原生�
 - **共享交互机制**：通过兼容的渲染接口处理模型，不逐角色登记网格白名单。
 - **鼠标拖动与回弹**：共享拾取、输入控制、弹簧运动和空间形变场。
 - **连续表面响应**：已适配的绘制路径共享形变状态，处理位置及表面方向。
-- **默认关闭交互**：需要手动开启；导航或兼容绘制中断时取消当前交互。
+- **默认开启交互**：可在配置器关闭启动默认值；导航或兼容绘制中断时取消当前交互。
 - **保留原生绘制**：适配原始着色器流程；拖放包沿用已有 EFMI，独立包内置原版官方渲染库。
 - **可选程序**：安装、修改键位和强度、原目录换装适配，不需后台常驻。
 
@@ -54,9 +59,9 @@ v0.2.3 于 2026-10-16 更新为通用渲染通道修复：根据共用的原生�
 
 | 安装情况 | 下载附件 | 使用方式 |
 | --- | --- | --- |
-| 已有 XXMI / EFMI | `EndfieldJiggleEFMI-v0.2.3-drop-in-win64.zip` | 解压为 `Mods` 下一个目录，含可选配置器 |
-| 没有 XXMI Launcher | `EndfieldJiggleEFMI-v0.2.3-standalone-win64.zip` | 整包解压，打开 `EndfieldJiggleLauncher.exe` |
-| 已有 EFMI，只需 Mod | `EndfieldJiggleEFMI-v0.2.3-win64.zip` | 仅触摸 Mod，不含程序 |
+| 已有 XXMI / EFMI | `EndfieldJiggleEFMI-v0.2.4-drop-in-win64.zip` | 解压为 `Mods` 下一个目录，含可选配置器 |
+| 没有 XXMI Launcher | `EndfieldJiggleEFMI-v0.2.4-standalone-win64.zip` | 整包解压，打开 `EndfieldJiggleLauncher.exe` |
+| 已有 EFMI，只需 Mod | `EndfieldJiggleEFMI-v0.2.4-win64.zip` | 仅触摸 Mod，不含程序 |
 
 独立包包含官方 EFMI 1.4.8、XXMI 渲染库 1.2.2、触摸 Mod 与配置器，不需另外安装
 XXMI Launcher 或 .NET。选择游戏本体 `Endfield.exe`，点击“等待官方启动”，
@@ -70,7 +75,7 @@ GitHub 自动提供的 `Source code` 归档是源代码，不是 Mod 包；不�
 
 安装前退出游戏和 XXMI。纯 Mod / 拖放 ZIP 内直接包含 `shaders`、`EndfieldJiggle.ini`、
 `Passes.ini`、`Outfits.ini`、`OutfitPreparation.ini`，请解压到 `Mods` 下一个独立目录，例如
-`Mods/EndfieldJiggleEFMI-v0.2.3-drop-in-win64/shaders`；也可命名为 `EndfieldJiggleEFMI`。
+`Mods/EndfieldJiggleEFMI-v0.2.4-drop-in-win64/shaders`；也可命名为 `EndfieldJiggleEFMI`。
 不需要再套 `Mods/EndfieldJiggleEFMI`。不打开 EXE 也可使用。需要管理 Mod、修改键位或参数时，
 再打开其中的 `Configurator/EndfieldJiggleConfigurator.exe`。
 升级前先将旧目录备份到 `Mods` 之外，不要混合版本。
@@ -85,23 +90,24 @@ GitHub 自动提供的 `Source code` 归档是源代码，不是 Mod 包；不�
 
 ### 已具备完整运行时的测试者
 
-从 XXMI 启动游戏，进入原版干员总览，先确认模型在关闭交互时显示正常，
-再开启触摸并进行短距离拖动。具体步骤和问题处理见[使用说明](docs/USAGE.md)。
+从 XXMI 启动游戏，进入角色界面或大世界，在可见角色表面进行短距离拖动。
+具体步骤和问题处理见[使用说明](docs/USAGE.md)。
 
 | 按键 | 功能 |
 | --- | --- |
-| `Ctrl+Shift+F8` | 开启 / 关闭触摸 |
-| `Shift + 鼠标左键` | 按住拖动，松开后释放 |
-| `Ctrl+Shift+F9` | 显示 / 隐藏诊断状态 |
+| `Ctrl+Shift+F9` | 开启 / 关闭触摸 |
+| `Alt + 鼠标左键` | 按住拖动，松开鼠标左键释放 |
+| `Ctrl+Shift+F8` | 显示 / 隐藏诊断状态 |
 | `Ctrl+Shift+F7` | 强制关闭触摸 |
 
-基础安装包启动后默认关闭触摸；源码研究版本身不能直接运行。配置器应用
-设置后，值会保存在 Mod 文件夹内，不依赖 EXE 常驻。
+基础安装包默认开启触摸，启动时不显示状态提示。配置器可取消“启动时开启触摸”；
+关闭后按 `Ctrl+Shift+F9` 开启，再按一次关闭。Alt 可一直按住，松开左键后重新抓取。
+源码研究版本身不能直接运行；设置保存在 Mod 文件夹内，不依赖 EXE 常驻。
 
 ## 兼容范围
 
-当前适配重点是 **Windows 版游戏的原版干员总览**。
-其他场景、游戏更新后的新着色器、透明材质、多角色重叠及第三方换装
+Windows 版游戏的角色界面与大世界使用同一套触摸输入；本次修订已获用户实机确认可用。
+游戏更新后的新着色器、透明材质、多角色重叠及第三方换装
 可能需要额外适配，不能保证响应位置、方向或显示效果。
 已有 EJTouch 适配包可调用本版恢复的换装桥接。普通换装仍需要绘制包装器。
 QAQM 状态文件缺失与桥接缺失是独立问题，详见[换装兼容说明](docs/OUTFIT-COMPATIBILITY.md)。

@@ -81,6 +81,23 @@ try { SettingsProfile.Import(SettingsProfile.Export(settings).Replace("EndfieldJ
 catch (InvalidDataException) { rejectedWrongProduct = true; }
 Check(rejectedWrongProduct, "profiles reject another product");
 
+Write("EFMI/Mods/Standalone/alt.ini", "[KeyMenu]\nkey = ALT\n");
+Write("EFMI/Mods/Standalone/alt-modifier.ini", "[KeyMenu]\nkey = no_ctrl no_shift alt VK_MENU\n");
+Write("EFMI/Mods/Standalone/ctrl-alt.ini", "[KeyMenu]\nkey = ctrl VK_MENU\n");
+IReadOnlyList<KeyConflict> altConflicts =
+    ModLibraryStore.FindConflicts(Path.Combine(fixture, "EFMI"), runtime,
+        TouchSettings.Default with { Drag = new("VK_MENU") });
+Check(altConflicts.Any(item => item.SourceFile.EndsWith("alt.ini", StringComparison.OrdinalIgnoreCase)),
+    "bare Alt alias conflicts with a VK_MENU drag");
+Check(altConflicts.Any(item => item.SourceFile.EndsWith("alt-modifier.ini", StringComparison.OrdinalIgnoreCase)),
+    "Alt primary key is physically held when comparing modifiers");
+Check(!altConflicts.Any(item => item.SourceFile.EndsWith("ctrl-alt.ini", StringComparison.OrdinalIgnoreCase)),
+    "Ctrl-restricted Alt does not overlap the default no-Ctrl drag");
+Write("EFMI/Mods/Standalone/alt-mouse.ini", "[KeyMenu]\nkey = no_ctrl no_shift alt VK_LBUTTON\n");
+Check(ModLibraryStore.FindConflicts(Path.Combine(fixture, "EFMI"), runtime, TouchSettings.Default)
+    .Any(item => item.SourceFile.EndsWith("alt-mouse.ini", StringComparison.OrdinalIgnoreCase)),
+    "Default Alt plus left mouse detects matching mouse chords");
+
 Console.WriteLine($"Library tests passed. Fixtures: {fixture}");
 
 static void Check(bool condition, string message)
