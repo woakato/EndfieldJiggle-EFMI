@@ -1,5 +1,13 @@
 # Package Identity and Maintenance Status
 
+## Current Release: v0.2.4
+
+The current stable release is v0.2.4 (October 17, 2026), with unified Alt-plus-mouse
+input, default-on startup and Ctrl+Shift+F9 toggling. All three installation
+packages and the embedded installer are synchronized. See
+[v0.2.4 publication identities and validation](V024-PUBLICATION.md).
+The v0.2.3 records below are preserved history.
+
 ## Published v0.2.3 Replacement
 
 The complete outfit-repair bundles replaced the original v0.2.3 assets on
