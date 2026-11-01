@@ -19,7 +19,13 @@ public partial class MainWindow : Window
     private bool closeAfterCancellation;
     private bool busy;
 
-    public MainWindow() => InitializeComponent();
+    public MainWindow()
+    {
+        InitializeComponent();
+        string version = typeof(MainWindow).Assembly.GetName().Version!.ToString(3);
+        Title = "EndfieldJiggle 独立版 " + version;
+        ProductVersionText.Text = "独立版 · " + version;
+    }
 
     public async Task InitializeAsync(bool autoLaunch)
     {

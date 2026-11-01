@@ -195,6 +195,7 @@ Check(SHA256.HashData(File.ReadAllBytes(includedPath)).SequenceEqual(SHA256.Hash
     "included INI draw also restores exact original bytes");
 Check(!store.HasRestorableBackup, "restored backup is no longer offered as restorable");
 
+CompatibilityChecks.Run(fixture, runtime);
 Console.WriteLine($"PASS: outfit adapter tests. Fixture: {fixture}");
 
 static void Check(bool condition, string description)

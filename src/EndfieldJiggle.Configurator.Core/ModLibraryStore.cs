@@ -97,7 +97,8 @@ public static class ModLibraryStore
     private static void FindProjects(string root, string directory, List<ModLibraryEntry> entries, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        if (IsExcluded(root, directory) || IsReparsePoint(directory))
+        if (IsExcluded(root, directory) || IsReparsePoint(directory) ||
+            RuntimeLocationLocator.HasRuntimeFiles(directory))
             return;
 
         string[] directIni = EnumerateDirectIni(directory);

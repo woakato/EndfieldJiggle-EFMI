@@ -19,7 +19,8 @@ public partial class MainWindow
         public string Section => Draw.Section;
         public string Source => $"{Draw.SourceFile}:{Draw.SourceLine}";
         public string Count => Draw.Count;
-        public string State => !Draw.Supported ? Reason(Draw.Reason) : alreadyAdapted ? "已适配 / 原始绘制" : "可适配";
+        public string State => Draw.IsAuxiliary ? "辅助绘制，无需适配" :
+            !Draw.Supported ? Reason(Draw.Reason) : alreadyAdapted ? "已适配 / 原始绘制" : "可适配";
         public bool Selectable => Draw.Supported && !alreadyAdapted;
         private bool enabled = draw.Supported && !alreadyAdapted;
         public bool Enabled
@@ -95,13 +96,15 @@ public partial class MainWindow
             row.PropertyChanged += (_, _) => UpdateAdaptButton();
         FilterDraws();
         RestoreOutfitButton.IsEnabled = inspected.Restore;
-        OutfitSummaryText.Text = inspection.AlreadyAdapted ? "已包含触摸包装器，不重复适配。" :
-            $"可适配 {inspection.SupportedDraws.Count} 项 · 未支持 {inspection.UnsupportedDraws.Count} 项" +
-            $" · 缺失必要资源 {inspection.MissingRequiredResources.Count} 项";
+        OutfitSummaryText.Text = (inspection.AlreadyAdapted ? "已包含触摸包装器。" :
+            $"可适配 {inspection.SupportedDraws.Count} 项") +
+            $" · 辅助绘制 {inspection.AuxiliaryDraws.Count} 项 · 未支持 {inspection.UnsupportedDraws.Count} 项" +
+            $" · 缺失必要资源 {inspection.MissingRequiredResources.Count} 项" +
+            $" · 缺失贴图 {inspection.MissingTextureResources.Count} 项";
         StringBuilder text = new();
         foreach (OutfitAdapterDraw draw in inspection.Draws)
         {
-            text.Append(draw.Supported ? "[支持] " : "[未支持] ")
+            text.Append(draw.IsAuxiliary ? "[辅助绘制] " : draw.Supported ? "[支持] " : "[未支持] ")
                 .Append(draw.SourceFile).Append(':').Append(draw.SourceLine)
                 .Append(" [").Append(draw.Section).Append(']').AppendLine();
             text.AppendLine(draw.Command.Trim());
@@ -109,6 +112,7 @@ public partial class MainWindow
             text.AppendLine();
         }
         foreach (string missing in inspection.MissingRequiredResources) text.AppendLine("[必要资源缺失] " + missing);
+        foreach (string missing in inspection.MissingTextureResources) text.AppendLine("[外观贴图缺失] " + missing);
         foreach (string missing in inspection.MissingUnreferencedResources) text.AppendLine("[未引用资源缺失] " + missing);
         OutfitDetailsText.Text = text.ToString();
         UpdateAdaptButton();
@@ -158,7 +162,8 @@ public partial class MainWindow
         string[] selectedDraws = drawRows.Where(row => row.Enabled).Select(row => row.Draw.Id).ToArray();
         await RunOperationAsync("适配换装", async token =>
         {
-            await Task.Run(() => selected.Apply(fingerprint, selectedDraws, requireStopped: !hot));
+            await Task.Run(() => selected.Apply(fingerprint, selectedDraws, requireStopped: !hot,
+                allowMissingTextures: true));
             await InspectOutfitAsync(token);
             await RefreshLibraryAsync(token);
             SetStatus(outfitStore.IsInEfmiModsTree
@@ -194,13 +199,19 @@ public partial class MainWindow
               "写入期间不要按 F10；完成后再回游戏重载。\n" +
               "此操作不会发送按键。F10 后若模型消失，请完整退出重启。"
             : "请先退出游戏和 XXMI。";
+        string warnings = operation == "原目录适配" && outfitInspection is { MissingTextureResources.Count: > 0 }
+            ? $"缺少 {outfitInspection.MissingTextureResources.Count} 项外观贴图：\n" +
+              string.Join("\n", outfitInspection.MissingTextureResources) +
+              "\n\n继续将保留这些原始引用。贴图缺失造成的外观或菜单问题仍会存在。\n\n"
+            : "";
         return MessageBox.Show(this, $"{operation}：\n{outfitStore?.Root}\n\n" +
-            "只修改所选换装的 INI，保存可撤销备份，不生成第二份换装 Mod。\n\n" + mode,
+            "只修改所选换装的 INI，保存可撤销备份，不生成第二份换装 Mod。\n\n" + warnings + mode,
             operation, MessageBoxButton.OKCancel, MessageBoxImage.Warning) == MessageBoxResult.OK;
     }
 
     private static string Reason(string reason) => reason switch
     {
+        "auxiliary-draw" => "自定义辅助或菜单绘制，无需加入原生触摸。",
         "custom-vertex-stage" => "自定义顶点或几何着色阶段，不能套用原生触摸。",
         "unsupported-draw-command" => "不是受支持的直接索引绘制命令。",
         "explicit-index-range-required" => "没有明确的索引范围。",

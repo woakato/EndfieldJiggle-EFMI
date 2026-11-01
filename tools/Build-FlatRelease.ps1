@@ -4,7 +4,7 @@ param(
     [Parameter(Mandatory)][string]$DotnetPath,
     [Parameter(Mandatory)][string]$OutputDirectory,
     [string]$PreviousModZipPath,
-    [ValidatePattern('^v\d+\.\d+\.\d+$')][string]$Version = 'v0.2.4'
+    [ValidatePattern('^v\d+\.\d+\.\d+$')][string]$Version = 'v0.2.6'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'

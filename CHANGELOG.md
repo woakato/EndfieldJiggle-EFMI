@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.2.6 - 2026-11-02
+
+- Discover runtime files recursively throughout the actual EFMI Mods tree,
+  independent of folder names or a fixed nesting depth.
+- Upgrade and restore nested installations in place, preserving settings,
+  ownership checks, backups and conflict detection.
+- Exclude renamed runtimes from the outfit library; resolve the real Mods root
+  when a category is also named Mods. Retain v0.2.5 outfit compatibility.
+- Add folder-layout workflow and actual EFMI loader regressions. Rendering,
+  physics and all fifteen accepted runtime files are unchanged.
+- Include the generic outfit compatibility improvements from the unpublished
+  v0.2.5 local build. No new in-game acceptance is claimed.
+
+## v0.2.5 - Local Test Build, 2026-10-24
+
+- Recognize native outfit meshes alongside scoped bone-extraction and menu
+  shaders; show auxiliary draws separately and leave them unwrapped.
+- Distinguish missing appearance textures from missing geometry, compute data,
+  shaders and includes. Explicitly acknowledged texture warnings allow adaptation
+  while preserving every author resource reference.
+- Track resource aliases within and across INI namespaces, and invalidate stale
+  inspections when referenced files appear, disappear or change metadata.
+- Retain resource diagnostics after adaptation, exact backup restoration and
+  all fifteen accepted v0.2.4 runtime files. No character or author allowlist.
+- Add synthetic regression cases and a reusable isolated EFMI workflow for
+  arbitrary read-only outfit sources. Game visuals remain a separate check.
+
 ## v0.2.4 - 2026-10-17
 
 - Unified character-menu and world controls: hold Alt plus left mouse to drag,

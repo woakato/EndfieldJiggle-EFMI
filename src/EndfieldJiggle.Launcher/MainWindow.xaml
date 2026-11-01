@@ -1,7 +1,7 @@
 <Window x:Class="EndfieldJiggle.Launcher.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="EndfieldJiggle 独立版 0.2.2 · 官方启动 · 路径检查修正版" Width="760" Height="550"
+        Title="EndfieldJiggle 独立版" Width="760" Height="550"
         MinWidth="640" MinHeight="520" WindowStartupLocation="CenterScreen"
         Background="#F2F4F5" FontFamily="Microsoft YaHei UI" FontSize="13"
         Closing="Window_Closing">
@@ -18,7 +18,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="EndfieldJiggle" FontSize="24" FontWeight="SemiBold"/>
-                <TextBlock Grid.Column="1" Text="独立版 · 0.2.2" Foreground="#58616B" VerticalAlignment="Center"/>
+                <TextBlock x:Name="ProductVersionText" Grid.Column="1" Text="独立版" Foreground="#58616B" VerticalAlignment="Center"/>
             </Grid>
         </Border>
         <Grid Grid.Row="1" Margin="24,22">

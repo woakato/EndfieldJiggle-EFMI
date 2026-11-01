@@ -13,15 +13,7 @@ public static class RuntimeLocationLocator
         string efmi = InstallablePackage.ResolveEfmiDirectory(selected);
         string mods = Path.Combine(efmi, "Mods");
         List<string> runtimes = [];
-        foreach (string directory in Directory.EnumerateDirectories(mods))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            string name = Path.GetFileName(directory);
-            if (name.StartsWith("DISABLED", StringComparison.OrdinalIgnoreCase) ||
-                !name.StartsWith("EndfieldJiggle", StringComparison.OrdinalIgnoreCase))
-                continue;
-            FindRuntime(directory, 0, runtimes, cancellationToken);
-        }
+        FindRuntimes(mods, runtimes, cancellationToken);
         if (runtimes.Count > 1)
             throw new InvalidDataException("检测到多份启用的触摸运行时，请先保留一份：" +
                 string.Join("；", runtimes));
@@ -95,7 +87,7 @@ public static class RuntimeLocationLocator
     private static void AddAncestors(string directory, List<string> paths)
     {
         string? current = Path.GetFullPath(directory);
-        for (int depth = 0; current is not null && depth < 8; depth++, current = Path.GetDirectoryName(current))
+        for (; current is not null; current = Path.GetDirectoryName(current))
         {
             paths.Add(current);
             foreach (string relative in new[] { "EFMI", "游戏包/EFMI", "Packages/EFMI" })
@@ -104,24 +96,31 @@ public static class RuntimeLocationLocator
         }
     }
 
-    private static void FindRuntime(string directory, int depth, List<string> found, CancellationToken token)
+    internal static bool HasRuntimeFiles(string directory) =>
+        File.Exists(Path.Combine(directory, "EndfieldJiggle.ini")) &&
+        File.Exists(Path.Combine(directory, "Passes.ini"));
+
+    private static void FindRuntimes(string mods, List<string> found, CancellationToken token)
     {
-        token.ThrowIfCancellationRequested();
-        if ((File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0) return;
-        if (File.Exists(Path.Combine(directory, "EndfieldJiggle.ini")) &&
-            File.Exists(Path.Combine(directory, "Passes.ini")))
+        Stack<string> pending = new();
+        pending.Push(mods);
+        while (pending.TryPop(out string? directory))
         {
-            _ = new RuntimeSettingsStore(directory).Read();
-            found.Add(directory);
-            return;
-        }
-        if (depth >= 3) return;
-        foreach (string child in Directory.EnumerateDirectories(directory))
-        {
-            string name = Path.GetFileName(child);
-            if (name.StartsWith("EndfieldJiggle", StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("Mods", StringComparison.OrdinalIgnoreCase))
-                FindRuntime(child, depth + 1, found, token);
+            token.ThrowIfCancellationRequested();
+            if ((File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0) continue;
+            if (HasRuntimeFiles(directory))
+            {
+                _ = new RuntimeSettingsStore(directory).Read();
+                found.Add(directory);
+            }
+            foreach (string child in Directory.EnumerateDirectories(directory))
+            {
+                token.ThrowIfCancellationRequested();
+                string name = Path.GetFileName(child);
+                if (!name.StartsWith("DISABLED", StringComparison.OrdinalIgnoreCase) &&
+                    !name.Equals(".git", StringComparison.OrdinalIgnoreCase))
+                    pending.Push(child);
+            }
         }
     }
 }

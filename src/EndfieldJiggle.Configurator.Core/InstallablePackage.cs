@@ -16,6 +16,7 @@ public sealed class InstallablePackage
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly Dictionary<string, byte[]> files;
     public bool Available => files.Count != 0;
+    public static string ApplicationVersion => typeof(InstallablePackage).Assembly.GetName().Version!.ToString(3);
 
     private InstallablePackage(Dictionary<string, byte[]> files) => this.files = files;
 
@@ -50,8 +51,6 @@ public sealed class InstallablePackage
         string efmi = ResolveEfmiDirectory(selectedDirectory);
         EnsureUnlinked(efmi);
         RuntimeLocation location = RuntimeLocationLocator.Resolve(efmi);
-        if (location.Nested)
-            throw new InvalidDataException("安装升级前请将触摸 Mod 整理为 Mods 的直接子目录。");
         string runtime = location.RuntimeDirectory ?? Path.Combine(efmi, "Mods", "EndfieldJiggleEFMI");
         EnsureUnlinked(runtime);
         bool upgrade = Directory.Exists(runtime) && Directory.EnumerateFileSystemEntries(runtime).Any();
@@ -142,7 +141,7 @@ public sealed class InstallablePackage
                 foreach (string name in files.Keys.Where(name => name.EndsWith(".ini", StringComparison.Ordinal)))
                     written[name] = Hash(File.ReadAllBytes(Inside(current.RuntimeDirectory, name)));
             }
-            InstallationReceipt receipt = new(1, "v0.2.4", current.RuntimeDirectory, session,
+            InstallationReceipt receipt = new(1, "v" + ApplicationVersion, current.RuntimeDirectory, session,
                 files.Keys.Select(name => new InstalledFile(name,
                     Hash(File.ReadAllBytes(Inside(current.RuntimeDirectory, name))))).ToArray());
             byte[] receiptBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(receipt, JsonOptions));
@@ -186,7 +185,7 @@ public sealed class InstallablePackage
     public static string ResolveEfmiDirectory(string selectedDirectory)
     {
         string current = Path.GetFullPath(selectedDirectory);
-        for (int depth = 0; depth < 10; depth++)
+        while (true)
         {
             EnsureUnlinked(current);
             if (File.Exists(Path.Combine(current, "d3dx.ini")) &&
@@ -196,7 +195,6 @@ public sealed class InstallablePackage
             current = Directory.GetParent(current)?.FullName
                 ?? throw new DirectoryNotFoundException("请选择含 d3dx.ini、d3d11.dll 和 Mods 的 EFMI 目录。");
         }
-        throw new DirectoryNotFoundException("所选目录不是 EFMI 安装目录。");
     }
 
     public static bool HasRestorableInstallation(string runtime)
@@ -212,7 +210,7 @@ public sealed class InstallablePackage
         if (requireStopped) EnsureStopped();
         string efmi = ResolveEfmiDirectory(runtime);
         runtime = Path.GetFullPath(runtime);
-        if (!string.Equals(Path.GetDirectoryName(runtime), Path.Combine(efmi, "Mods"),
+        if (!string.Equals(RuntimeLocationLocator.Resolve(efmi).RuntimeDirectory, runtime,
                 StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("恢复目标必须是 Mods 中实际安装的触摸目录。");
         EnsureUnlinked(runtime);

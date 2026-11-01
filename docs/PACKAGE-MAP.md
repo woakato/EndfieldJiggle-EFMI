@@ -1,6 +1,28 @@
 # Package Identity and Maintenance Status
 
-## Current Release: v0.2.4
+## Current Release: v0.2.6
+
+v0.2.6 (November 2, 2026) adds generic outfit inspection and adaptation from
+the unpublished v0.2.5 local build, and folder-independent runtime discovery,
+nested in-place upgrade and restore. It retains all fifteen accepted v0.2.4
+runtime files. Native shader rules, pickers and physics are unchanged.
+
+The three installation forms remain pure Mod, drop-in with configurator, and
+standalone with official EFMI/libraries. The drop-in and standalone include the
+updated configurator; the pure Mod alone cannot provide its new adaptation or
+discovery workflow. See [release notes](RELEASE-v0.2.6-zh-CN.md).
+
+Checks include 73 discovery/workflow, 80 configurator, 22 installation and
+60 adapter checks, six actual EFMI layouts and 291 nested outfit GPU assertions.
+Two real outfits passed 18 isolated adaptation checks with no new loader
+diagnostics; missing author textures and existing diagnostics remain.
+The added behavior has no new in-game acceptance.
+
+Source is pinned by tag `v0.2.6`. Package identities and upload verification are
+recorded separately in [the publication record](V026-PUBLICATION.md), so the
+tagged source and the standalone's embedded source remain identical.
+
+## Previous Release: v0.2.4
 
 The current stable release is v0.2.4 (October 17, 2026), with unified Alt-plus-mouse
 input, default-on startup and Ctrl+Shift+F9 toggling. All three installation

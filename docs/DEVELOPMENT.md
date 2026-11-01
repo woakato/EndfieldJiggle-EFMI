@@ -21,6 +21,14 @@ DXBC、注入 DLL、模型、纹理、本机抓取报告或安装记录。发布
 
 ## 独立源码检查
 
+v0.2.5 的通用换装适配改动位于 `OutfitAdapterStore` 与配置器换装页。
+`tests/EndfieldJiggle.OutfitAdapter.Tests` 覆盖外观警告、关键资源阻断、
+跨命名空间别名、嵌套辅助阶段、资源变更与精确恢复。
+`tools/Test-OutfitCompatibility.ps1` 接受任意只读换装目录列表，在 `reports`
+复制隔离环境，执行实际 EFMI 加载、通用适配、恢复和源目录完整性检查。
+无需为某个角色或作者修改测试程序；真实 Mod 文件和测试报告不得进入公开源码。
+此版本可用现有审核运行时报告构建，不需要重新生成游戏着色器。
+
 需要 PowerShell 7：
 
 ```powershell

@@ -19,6 +19,9 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Title = "EndfieldJiggle " + InstallablePackage.ApplicationVersion;
+        ProductVersionText.Text = "EFMI · " + InstallablePackage.ApplicationVersion;
+        FooterText.Text = InstallablePackage.ApplicationVersion;
         ToggleKeyCombo.ItemsSource = StopKeyCombo.ItemsSource =
             DiagnosticKeyCombo.ItemsSource = TouchSettings.KeyboardOptions;
         DragKeyCombo.ItemsSource = TouchSettings.DragOptions;
@@ -182,9 +185,7 @@ public partial class MainWindow : Window
         EfmiPathBox.Text = efmi;
         installation = null;
         InstallButton.IsEnabled = false;
-        if (location.Nested)
-            InstallPreviewText.Text = "检测到多套一层的运行时，已定位实际配置。可改键和适配；安装升级请先整理目录，程序不会自动搬动文件。";
-        else if (package?.Available == true)
+        if (package?.Available == true)
         {
             try
             {
@@ -218,7 +219,7 @@ public partial class MainWindow : Window
         UpdateReloadBinding();
         await Task.Run(() => RememberWorkspace(efmi), token);
         if (location.Nested)
-            FooterText.Text = "已自动定位实际运行时：" + currentRuntime + "（目录多套一层，未移动文件）";
+            FooterText.Text = "已自动定位实际运行时：" + currentRuntime;
     }
 
     private async void Install_Click(object sender, RoutedEventArgs e)
@@ -235,7 +236,7 @@ public partial class MainWindow : Window
             InstallResultText.Text = $"安装完成。\n备份：{result.BackupDirectory}\n" +
                 (result.SettingsPreserved ? "已保留原来的按键和强度。" : "已使用本版默认配置。");
             await OpenWorkspaceAsync(preview.EfmiDirectory, token);
-            SetStatus("0.2.4 已安装。", true);
+            SetStatus(InstallablePackage.ApplicationVersion + " 已安装。", true);
         }, writing: true);
     }
 

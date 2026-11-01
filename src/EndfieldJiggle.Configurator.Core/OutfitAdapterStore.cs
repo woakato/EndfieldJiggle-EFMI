@@ -19,7 +19,10 @@ public sealed record OutfitAdapterDraw(
     string InstanceCount,
     string FirstInstance,
     bool Supported,
-    string Reason);
+    string Reason)
+{
+    public bool IsAuxiliary { get; init; }
+}
 
 public sealed record OutfitAdapterInspection(
     string Fingerprint,
@@ -30,8 +33,10 @@ public sealed record OutfitAdapterInspection(
     bool AlreadyAdapted)
 {
     internal string RuntimeFingerprint { get; init; } = "";
+    public IReadOnlyList<string> MissingTextureResources { get; init; } = [];
     public IReadOnlyList<OutfitAdapterDraw> SupportedDraws => Draws.Where(draw => draw.Supported).ToArray();
-    public IReadOnlyList<OutfitAdapterDraw> UnsupportedDraws => Draws.Where(draw => !draw.Supported).ToArray();
+    public IReadOnlyList<OutfitAdapterDraw> UnsupportedDraws => Draws.Where(draw => !draw.Supported && !draw.IsAuxiliary).ToArray();
+    public IReadOnlyList<OutfitAdapterDraw> AuxiliaryDraws => Draws.Where(draw => draw.IsAuxiliary).ToArray();
 }
 
 public sealed class OutfitAdapterStore
@@ -53,11 +58,21 @@ public sealed class OutfitAdapterStore
         ArgumentException.ThrowIfNullOrWhiteSpace(runtimeDirectory);
         root = Path.GetFullPath(outfitDirectory);
         runtime = Path.GetFullPath(runtimeDirectory);
-        modsRoot = Path.GetDirectoryName(runtime)
-            ?? throw new InvalidDataException("Runtime directory must be inside EFMI Mods.");
-        while (!Path.GetFileName(modsRoot).Equals("Mods", StringComparison.OrdinalIgnoreCase))
-            modsRoot = Path.GetDirectoryName(modsRoot)
-                ?? throw new InvalidDataException("Runtime directory must be inside EFMI Mods.");
+        string? actualMods = null;
+        for (string? current = Path.GetDirectoryName(runtime); current is not null;
+             current = Path.GetDirectoryName(current))
+        {
+            if (!Path.GetFileName(current).Equals("Mods", StringComparison.OrdinalIgnoreCase)) continue;
+            actualMods ??= current;
+            string? parent = Path.GetDirectoryName(current);
+            if (parent is not null && File.Exists(Path.Combine(parent, "d3dx.ini")) &&
+                File.Exists(Path.Combine(parent, "d3d11.dll")))
+            {
+                actualMods = current;
+                break;
+            }
+        }
+        modsRoot = actualMods ?? throw new InvalidDataException("Runtime directory must be inside EFMI Mods.");
         EnsureUnlinked(root);
         EnsureUnlinked(runtime);
         EnsureUnlinked(modsRoot);
@@ -75,29 +90,22 @@ public sealed class OutfitAdapterStore
         RuntimeFileSnapshot[] runtimeFiles = ValidateRuntime();
         string runtimeFingerprint = RuntimeFingerprint(runtimeFiles);
         bool alreadyAdapted = documents.Any(document => HasAdapterMarker(document));
-        if (alreadyAdapted)
-        {
-            IReadOnlyList<OutfitAdapterDraw> existing = ScanDraws(documents);
-            return new(Fingerprint(documents, runtimeFiles), existing, DisabledIniFiles(), [], [], true)
-            {
-                RuntimeFingerprint = runtimeFingerprint,
-            };
-        }
-
         HashSet<string> unsafeSections = FindUnsafeSections(documents);
-        (List<string> missing, List<string> unreferencedMissing) = ValidateDependencies(documents);
+        (List<string> missing, List<string> textures, List<string> unreferencedMissing) = ValidateDependencies(documents);
         List<OutfitAdapterDraw> draws = ScanDraws(documents, unsafeSections);
-        return new(Fingerprint(documents, runtimeFiles), draws, DisabledIniFiles(), missing, unreferencedMissing, false)
+        return new(Fingerprint(documents, runtimeFiles), draws, DisabledIniFiles(), missing, unreferencedMissing, alreadyAdapted)
         {
             RuntimeFingerprint = runtimeFingerprint,
+            MissingTextureResources = textures,
         };
     }
 
-    public OutfitAdapterInspection Apply(string expectedFingerprint, bool requireStopped = true) =>
-        Apply(expectedFingerprint, null, requireStopped);
+    public OutfitAdapterInspection Apply(string expectedFingerprint, bool requireStopped = true,
+        bool allowMissingTextures = false) =>
+        Apply(expectedFingerprint, null, requireStopped, allowMissingTextures);
 
     public OutfitAdapterInspection Apply(string expectedFingerprint, IReadOnlyCollection<string>? selectedDrawIds,
-        bool requireStopped = true)
+        bool requireStopped = true, bool allowMissingTextures = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedFingerprint);
         EnsureProcesses(requireStopped);
@@ -111,6 +119,9 @@ public sealed class OutfitAdapterStore
         if (inspection.MissingRequiredResources.Count != 0)
             throw new InvalidDataException("Required outfit resources are missing: " +
                 string.Join("; ", inspection.MissingRequiredResources));
+        if (!allowMissingTextures && inspection.MissingTextureResources.Count != 0)
+            throw new InvalidDataException("Outfit textures are missing. Review the appearance warnings before adapting: " +
+                string.Join("; ", inspection.MissingTextureResources));
         if (inspection.SupportedDraws.Count == 0)
             throw new InvalidDataException("No supported indexed draws were found.");
         HashSet<string>? selection = selectedDrawIds?.ToHashSet(StringComparer.Ordinal);
@@ -386,6 +397,10 @@ public sealed class OutfitAdapterStore
         foreach (IniDocument document in documents)
         foreach (IniSection section in document.Sections)
         {
+            bool auxiliary = section.Name.StartsWith("CustomShader", StringComparison.OrdinalIgnoreCase) &&
+                (unsafeSections?.Contains(SectionKey(document, section)) == true ||
+                 section.LineIndices.Any(index => Regex.IsMatch(StripEol(document.Lines[index]),
+                     @"^\s*(?:post\s+)?cs\s*=", RegexOptions.IgnoreCase)));
             List<string> branches = [];
             foreach (int lineIndex in section.LineIndices)
             {
@@ -411,7 +426,8 @@ public sealed class OutfitAdapterStore
                 string[] args = Regex.Split(match.Groups["args"].Value.Trim(), @"\s*,\s*");
                 string reason = "";
                 string count = "", first = "", @base = "", instances = "1", firstInstance = "0";
-                if (unsafeSections?.Contains(SectionKey(document, section)) == true) reason = "custom-vertex-stage";
+                if (auxiliary) reason = "auxiliary-draw";
+                else if (unsafeSections?.Contains(SectionKey(document, section)) == true) reason = "custom-vertex-stage";
                 else if (!Regex.IsMatch(section.Name, @"^(TextureOverride|CommandList|CustomShader)", RegexOptions.IgnoreCase))
                     reason = "non-mesh-section";
                 else if (key is not ("drawindexed" or "drawindexedinstanced")) reason = "unsupported-draw-command";
@@ -439,7 +455,10 @@ public sealed class OutfitAdapterStore
                 string identity = document.RelativePath.Replace('\\', '/') + ":" + (lineIndex + 1) + ":" + line.Trim();
                 string id = "D" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)))[..16];
                 result.Add(new(id, document.RelativePath, section.Name, lineIndex + 1, line, string.Join(" / ", branches),
-                    count, first, @base, instances, firstInstance, reason.Length == 0, reason));
+                    count, first, @base, instances, firstInstance, reason.Length == 0, reason)
+                {
+                    IsAuxiliary = auxiliary,
+                });
             }
         }
         return result;
@@ -450,21 +469,31 @@ public sealed class OutfitAdapterStore
         Dictionary<string, HashSet<string>> connectedSections = new(StringComparer.OrdinalIgnoreCase);
         Dictionary<string, (IniDocument Document, IniSection Section)> sections = new(StringComparer.OrdinalIgnoreCase);
         HashSet<string> unsafeSections = new(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> scopedStages = new(StringComparer.OrdinalIgnoreCase);
         foreach (IniDocument document in documents)
         foreach (IniSection section in document.Sections)
         {
             string key = SectionKey(document, section);
             sections.Add(key, (document, section));
             connectedSections.Add(key, new(StringComparer.OrdinalIgnoreCase));
+            bool customShader = section.Name.StartsWith("CustomShader", StringComparison.OrdinalIgnoreCase);
             if (section.LineIndices.Any(index => Regex.IsMatch(StripEol(document.Lines[index]),
-                    @"^\s*(?:post\s+)?(?:vs|gs|hs|ds)\s*=", RegexOptions.IgnoreCase)))
-                unsafeSections.Add(key);
+                    customShader ? @"^\s*(?:post\s+)?(?:vs|gs|hs|ds|cs)\s*=" :
+                        @"^\s*(?:post\s+)?(?:vs|gs|hs|ds)\s*=", RegexOptions.IgnoreCase)))
+            {
+                if (customShader)
+                    scopedStages.Add(key);
+                else
+                    unsafeSections.Add(key);
+            }
         }
 
         foreach ((string callerKey, (IniDocument document, IniSection section)) in sections)
         foreach (string call in section.Calls)
         foreach ((IniDocument targetDocument, IniSection targetSection) in ResolveCallTargets(document, call, documents))
         {
+            if (section.Name.StartsWith("CustomShader", StringComparison.OrdinalIgnoreCase) ||
+                targetSection.Name.StartsWith("CustomShader", StringComparison.OrdinalIgnoreCase)) continue;
             string targetKey = SectionKey(targetDocument, targetSection);
             connectedSections[callerKey].Add(targetKey);
             connectedSections[targetKey].Add(callerKey);
@@ -477,16 +506,30 @@ public sealed class OutfitAdapterStore
                 if (unsafeSections.Add(connected))
                     queue.Enqueue(connected);
         }
+        // CustomShader restores its declared stages on return. Its callees still
+        // draw under that temporary stage, without tainting the native caller.
+        queue = new(scopedStages);
+        HashSet<string> visited = new(StringComparer.OrdinalIgnoreCase);
+        while (queue.Count != 0)
+        {
+            string key = queue.Dequeue();
+            if (!visited.Add(key)) continue;
+            unsafeSections.Add(key);
+            (IniDocument document, IniSection section) = sections[key];
+            foreach (string call in section.Calls)
+            foreach ((IniDocument targetDocument, IniSection targetSection) in ResolveCallTargets(document, call, documents))
+                queue.Enqueue(SectionKey(targetDocument, targetSection));
+        }
         return unsafeSections;
     }
 
     private static IEnumerable<(IniDocument Document, IniSection Section)> ResolveCallTargets(
         IniDocument caller, string call, IReadOnlyList<IniDocument> documents)
     {
-        Match qualified = Regex.Match(call, @"^CommandList\\(.+)\\([^\\]+)$", RegexOptions.IgnoreCase);
-        string name = qualified.Success ? "CommandList" + qualified.Groups[2].Value : call;
+        Match qualified = Regex.Match(call, @"^(CommandList|CustomShader)\\(.+)\\([^\\]+)$", RegexOptions.IgnoreCase);
+        string name = qualified.Success ? qualified.Groups[1].Value + qualified.Groups[3].Value : call;
         IEnumerable<IniDocument> candidates = qualified.Success
-            ? documents.Where(document => document.Namespace.Equals(qualified.Groups[1].Value, StringComparison.OrdinalIgnoreCase))
+            ? documents.Where(document => document.Namespace.Equals(qualified.Groups[2].Value, StringComparison.OrdinalIgnoreCase))
             : caller.Namespace.Length == 0
                 ? [caller]
                 : documents.Where(document => document.Namespace.Equals(caller.Namespace, StringComparison.OrdinalIgnoreCase));
@@ -496,76 +539,125 @@ public sealed class OutfitAdapterStore
             yield return (document, section);
     }
 
-    private (List<string> Missing, List<string> UnreferencedMissing) ValidateDependencies(IReadOnlyList<IniDocument> documents)
+    private (List<string> Missing, List<string> Textures, List<string> UnreferencedMissing) ValidateDependencies(
+        IReadOnlyList<IniDocument> documents)
     {
         Dictionary<string, HashSet<string>> resourceEdges = new(StringComparer.OrdinalIgnoreCase);
         Queue<string> used = new();
+        Queue<string> geometry = new();
         foreach (IniDocument document in documents)
         foreach (IniSection section in document.Sections)
         {
             bool resource = Regex.IsMatch(section.Name, @"^Resource", RegexOptions.IgnoreCase);
-            if (resource && !resourceEdges.ContainsKey(section.Name))
-                resourceEdges.Add(section.Name, new(StringComparer.OrdinalIgnoreCase));
+            string sectionResource = ResourceKey(document, section.Name);
+            if (resource && !resourceEdges.ContainsKey(sectionResource))
+                resourceEdges.Add(sectionResource, new(StringComparer.OrdinalIgnoreCase));
             foreach (int index in section.LineIndices)
-            foreach (string reference in ResourceReferences(StripEol(document.Lines[index])))
             {
-                if (resource) resourceEdges[section.Name].Add(reference);
-                else used.Enqueue(reference);
+                string code = StripEol(document.Lines[index]).Split(';', 2)[0].Trim();
+                if (resource && Regex.IsMatch(code, @"^type\s*=\s*\w*Buffer\b", RegexOptions.IgnoreCase))
+                    geometry.Enqueue(sectionResource);
+                Match assignment = Regex.Match(code, @"^(?:post\s+)?(?<key>[^=]+?)\s*=\s*(?<value>.*)$",
+                    RegexOptions.IgnoreCase);
+                string key = assignment.Success ? assignment.Groups["key"].Value.Trim() : "";
+                string value = assignment.Success ? assignment.Groups["value"].Value : code;
+                if (Regex.IsMatch(key, @"^(filename|include|include_recursive|data|vs|ps|cs|gs|hs|ds)$",
+                        RegexOptions.IgnoreCase)) continue;
+                string? destination = resource ? sectionResource :
+                    Regex.IsMatch(key, @"^Resource(?:\\.+|[-\p{L}\p{N}_.]+)$", RegexOptions.IgnoreCase)
+                        ? ResourceKey(document, key) : null;
+                if (destination is not null && !resourceEdges.ContainsKey(destination))
+                    resourceEdges.Add(destination, new(StringComparer.OrdinalIgnoreCase));
+                foreach (string token in ResourceReferences(value))
+                {
+                    string reference = ResourceKey(document, token);
+                    if (destination is not null) resourceEdges[destination].Add(reference);
+                    if (!resource) used.Enqueue(reference);
+                    if (Regex.IsMatch(key, @"^(ib|vb\d+|(?:vs|gs|hs|ds|cs)-(?:t|cb|u)\d+|ps-(?:cb|u)\d+|so\d*)$",
+                            RegexOptions.IgnoreCase))
+                        geometry.Enqueue(reference);
+                }
             }
         }
-        HashSet<string> requiredResources = new(StringComparer.OrdinalIgnoreCase);
-        while (used.Count != 0)
+        HashSet<string> Closure(Queue<string> pending)
         {
-            string name = used.Dequeue();
-            if (!requiredResources.Add(name) || !resourceEdges.TryGetValue(name, out HashSet<string>? dependencies)) continue;
-            foreach (string dependency in dependencies) used.Enqueue(dependency);
+            HashSet<string> result = new(StringComparer.OrdinalIgnoreCase);
+            while (pending.Count != 0)
+            {
+                string name = pending.Dequeue();
+                if (!result.Add(name) || !resourceEdges.TryGetValue(name, out HashSet<string>? dependencies)) continue;
+                foreach (string dependency in dependencies) pending.Enqueue(dependency);
+            }
+            return result;
         }
+        HashSet<string> requiredResources = Closure(used);
+        HashSet<string> geometryResources = Closure(geometry);
 
-        List<string> missing = [], unreferenced = [];
+        List<string> missing = [], textures = [], unreferenced = [];
+        foreach (FileDependency dependency in FileDependencies(documents))
+        {
+            bool resourceFile = dependency.Key.Equals("filename", StringComparison.OrdinalIgnoreCase) &&
+                dependency.Section.Name.StartsWith("Resource", StringComparison.OrdinalIgnoreCase);
+            string resource = ResourceKey(dependency.Document, dependency.Section.Name);
+            bool required = !resourceFile || requiredResources.Contains(resource);
+            bool exists = dependency.Key.Equals("include_recursive", StringComparison.OrdinalIgnoreCase)
+                ? Directory.Exists(dependency.Target) : File.Exists(dependency.Target);
+            if (exists) continue;
+            bool texture = resourceFile && !geometryResources.Contains(resource) &&
+                Regex.IsMatch(Path.GetExtension(dependency.Target), @"^\.(dds|png|jpe?g|bmp|tga|tiff?)$",
+                    RegexOptions.IgnoreCase);
+            (required ? texture ? textures : missing : unreferenced).Add(dependency.Description);
+        }
+        return (missing, textures, unreferenced);
+    }
+
+    private string ResourceKey(IniDocument document, string reference)
+    {
+        Match qualified = Regex.Match(reference, @"^Resource\\(.+)\\([^\\]+)$", RegexOptions.IgnoreCase);
+        return qualified.Success
+            ? qualified.Groups[1].Value + "\0Resource" + qualified.Groups[2].Value
+            : (document.Namespace.Length == 0
+                ? Path.GetRelativePath(Path.GetDirectoryName(modsRoot)!, document.FullPath).Replace('/', '\\')
+                : document.Namespace) + "\0" + reference;
+    }
+
+    private IEnumerable<FileDependency> FileDependencies(IReadOnlyList<IniDocument> documents)
+    {
         foreach (IniDocument document in documents)
         foreach (IniSection section in document.Sections)
         foreach (int index in section.LineIndices)
         {
             Match reference = Regex.Match(StripEol(document.Lines[index]),
-                @"^\s*(?<key>filename|include|include_recursive|vs|ps|cs|gs|hs|ds)\s*=\s*(?<path>[^;\r\n]+)",
+                @"^\s*(?:post\s+)?(?<key>filename|include|include_recursive|vs|ps|cs|gs|hs|ds)\s*=\s*(?<path>[^;\r\n]+)",
                 RegexOptions.IgnoreCase);
             if (!reference.Success) continue;
             string key = reference.Groups["key"].Value;
             string value = reference.Groups["path"].Value.Trim().Trim('"');
             if (Regex.IsMatch(key, @"^(vs|ps|cs|gs|hs|ds)$", RegexOptions.IgnoreCase) &&
-                Regex.IsMatch(value, @"^(null|from_caller)$|^(ref|copy)\s+", RegexOptions.IgnoreCase)) continue;
+                Regex.IsMatch(value, @"^(null|from_caller)$|^(ref|copy|reference)\s+", RegexOptions.IgnoreCase)) continue;
             if (value.IndexOfAny(['*', '$']) >= 0)
                 throw new InvalidDataException($"Dynamic file reference requires manual review: {document.RelativePath}:{index + 1}");
             string target = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(document.FullPath)!, value));
             if (!IsWithin(root, target))
                 throw new InvalidDataException($"File dependency leaves the outfit directory: {document.RelativePath} -> {value}");
             EnsureUnlinked(target);
-            bool required = !(key.Equals("filename", StringComparison.OrdinalIgnoreCase) &&
-                Regex.IsMatch(section.Name, @"^Resource[-\p{L}\p{N}_.]+$") && !requiredResources.Contains(section.Name));
-            bool exists = key.Equals("include_recursive", StringComparison.OrdinalIgnoreCase)
-                ? Directory.Exists(target)
-                : File.Exists(target);
-            if (exists) continue;
-            string description = $"{document.RelativePath}:{index + 1} [{section.Name}] -> {value}";
-            (required ? missing : unreferenced).Add(description);
+            yield return new(document, section, key, target,
+                $"{document.RelativePath}:{index + 1} [{section.Name}] -> {value}");
         }
-        return (missing, unreferenced);
     }
 
-    private static IEnumerable<string> ResourceReferences(string line)
+    private static IEnumerable<string> ResourceReferences(string code)
     {
-        string code = line.Trim();
-        if (Regex.IsMatch(code, @"^(;|#|//)") ||
-            Regex.IsMatch(code, @"^(filename|include|include_recursive|data|vs|ps|cs|gs|hs|ds)\s*=", RegexOptions.IgnoreCase))
-            yield break;
+        if (Regex.IsMatch(code.TrimStart(), @"^(;|#|//)")) yield break;
         code = code.Split(';', 2)[0].Replace("->", " ", StringComparison.Ordinal);
         foreach (Match match in Regex.Matches(code,
             @"(?i)(?<![\p{L}\p{N}_$])Resource(?:\\[^\s,=;()\[\]><!]+|[-\p{L}\p{N}_.]+)"))
         {
-            string token = match.Value;
-            yield return token.Contains('\\') ? "Resource" + token.Split('\\')[^1] : token;
+            yield return match.Value;
         }
     }
+
+    private sealed record FileDependency(IniDocument Document, IniSection Section, string Key, string Target, string Description);
 
     private string Patch(IniDocument document, IReadOnlyList<OutfitAdapterDraw> draws)
     {
@@ -616,6 +708,22 @@ public sealed class OutfitAdapterStore
             hash.AppendData([0]);
             hash.AppendData(SHA256.HashData(document.Bytes));
             hash.AppendData(BitConverter.GetBytes(File.GetLastWriteTimeUtc(document.FullPath).Ticks));
+        }
+        foreach (FileDependency dependency in FileDependencies(documents)
+                     .OrderBy(item => item.Target, StringComparer.OrdinalIgnoreCase))
+        {
+            hash.AppendData(Encoding.UTF8.GetBytes(dependency.Target.ToLowerInvariant()));
+            hash.AppendData([0]);
+            bool directory = dependency.Key.Equals("include_recursive", StringComparison.OrdinalIgnoreCase);
+            bool exists = directory ? Directory.Exists(dependency.Target) : File.Exists(dependency.Target);
+            hash.AppendData([exists ? (byte)1 : (byte)0]);
+            // Included INIs are already fingerprinted. Staging a temporary file
+            // inside an included directory must not invalidate our transaction.
+            if (exists && !directory)
+            {
+                hash.AppendData(BitConverter.GetBytes(new FileInfo(dependency.Target).Length));
+                hash.AppendData(BitConverter.GetBytes(File.GetLastWriteTimeUtc(dependency.Target).Ticks));
+            }
         }
         hash.AppendData(Convert.FromHexString(RuntimeFingerprint(runtimeFiles)));
         return Convert.ToHexString(hash.GetHashAndReset());
@@ -853,7 +961,7 @@ public sealed class OutfitAdapterStore
             else if (section is not null)
             {
                 section.LineIndices.Add(i);
-                Match call = Regex.Match(line, @"^\s*(?:post\s+)?run\s*=\s*(CommandList[^\s;]+)\s*(?:;.*)?$", RegexOptions.IgnoreCase);
+                Match call = Regex.Match(line, @"^\s*(?:post\s+)?run\s*=\s*((?:CommandList|CustomShader)[^\s;]+)\s*(?:;.*)?$", RegexOptions.IgnoreCase);
                 if (call.Success) section.Calls.Add(call.Groups[1].Value);
             }
             else

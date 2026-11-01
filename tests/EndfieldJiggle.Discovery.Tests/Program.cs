@@ -13,7 +13,7 @@ File.WriteAllText(Path.Combine(efmi, "Core", "EFMI", "KeyBindings.ini"),
     "[KeyToggleMods]\nkey = no_modifiers VK_F11\nrun = CommandListToggleMods\n");
 InstallablePackage package = InstallablePackage.FromRuntimeArchive(File.ReadAllBytes(args[0]));
 string runtime = package.Install(package.Preview(efmi), requireStopped: false).RuntimeDirectory;
-int checks = 0;
+int checks = FolderLayoutChecks.Run(package, fixture, runtime);
 void Check(bool value, string name)
 {
     if (!value) throw new InvalidOperationException(name);

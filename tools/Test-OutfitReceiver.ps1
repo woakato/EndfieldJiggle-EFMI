@@ -6,7 +6,9 @@ param(
     [Parameter(Mandatory)][string]$UnknownShaderPath,
     [Parameter(Mandatory)][string]$OutputDirectory,
     [ValidateSet('active','disabled','cancelled','incomplete','outfit-disabled','invalid-range','invalid-instances')]
-    [string]$Scenario = 'active'
+    [string]$Scenario = 'active',
+    [string]$RuntimeRelativePath = 'Mods\EndfieldJiggleEFMI',
+    [string]$RuntimeReportPath
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -15,8 +17,9 @@ $native = Get-Content -Raw -LiteralPath $report.nativeReceiverReportPath | Conve
 if ((Get-FileHash -LiteralPath $report.nativeReceiverReportPath).Hash -cne $report.nativeReceiverReportSha256) {
     throw 'Native receiver evidence changed.'
 }
-foreach ($file in $report.files) {
-    if ((Get-FileHash -LiteralPath (Join-Path $report.packageDirectory $file.path)).Hash -cne $file.sha256) {
+$payload = if ($RuntimeReportPath) { Get-Content -Raw -LiteralPath $RuntimeReportPath | ConvertFrom-Json } else { $report }
+foreach ($file in $payload.files) {
+    if ((Get-FileHash -LiteralPath (Join-Path $payload.packageDirectory $file.path)).Hash -cne $file.sha256) {
         throw "Candidate payload changed: $($file.path)"
     }
 }
@@ -27,8 +30,13 @@ foreach ($name in @('d3d11.dll','d3dcompiler_47.dll','Core')) {
     Copy-Item -LiteralPath (Join-Path $LoaderDirectory $name) -Destination $sandbox -Recurse
 }
 Copy-Item -LiteralPath $LoaderHost -Destination (Join-Path $sandbox 'loader_host.exe')
-$runtime = Join-Path $sandbox 'Mods\EndfieldJiggleEFMI'
-Copy-Item -LiteralPath $report.packageDirectory -Destination $runtime -Recurse
+$runtime = [IO.Path]::GetFullPath((Join-Path $sandbox $RuntimeRelativePath))
+if ([IO.Path]::IsPathRooted($RuntimeRelativePath) -or
+    !$runtime.StartsWith((Join-Path $sandbox 'Mods\'), [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Runtime fixture must remain inside isolated Mods.'
+}
+New-Item -ItemType Directory -Path (Split-Path -Parent $runtime) -Force | Out-Null
+Copy-Item -LiteralPath $payload.packageDirectory -Destination $runtime -Recurse
 $iniPath = Join-Path $runtime 'EndfieldJiggle.ini'
 $ini = [IO.File]::ReadAllText($iniPath).Replace('global $enabled = 0','global $enabled = 1').
     Replace('global $mod_id = 0','global $mod_id = 1').Replace('global $complete = 0','global $complete = 1')
@@ -197,6 +205,8 @@ for ($i=0; $i -lt $programs.Count; $i++) {
 }
 [ordered]@{
     passed=$true; scenario=$Scenario; checks=$checks.ToArray(); shaderPrograms=$programs.Count
+    runtimeRelativePath=$RuntimeRelativePath
+    runtimeReportPath=$RuntimeReportPath
     buildReportSha256=(Get-FileHash -LiteralPath $BuildReportPath).Hash
     diagnostics=$diagnostics; inGameVerified=$false; liveInstallationModified=$false
 } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $sandbox 'test-report.json') -Encoding utf8
