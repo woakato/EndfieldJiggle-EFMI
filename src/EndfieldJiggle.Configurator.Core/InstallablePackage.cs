@@ -220,7 +220,7 @@ public sealed class InstallablePackage
         InstallationReceipt receipt = JsonSerializer.Deserialize<InstallationReceipt>(
             File.ReadAllText(receiptPath), JsonOptions) ?? throw new InvalidDataException("安装记录无效。");
         if (receipt.Schema != 1 || receipt.RuntimeDirectory != runtime || receipt.Files is null ||
-            receipt.Files.Length is < 14 or > 24 ||
+            receipt.Files.Length is < 14 or > 26 ||
             receipt.Files.Any(file => file is null || !IsOwnedPayloadName(file.Name) ||
                 file.Sha256 is null || file.Sha256.Length != 64 || !file.Sha256.All(Uri.IsHexDigit)) ||
             receipt.Files.Select(file => file.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() != receipt.Files.Length)
@@ -380,7 +380,7 @@ public sealed class InstallablePackage
             string name = entry.FullName[prefix.Length..].Replace('\\', '/');
             _ = Inside(Path.GetTempPath(), name);
             if (name is "LICENSE" or "THIRD-PARTY-NOTICES.md" or "DISCLAIMER.md" or
-                "INSTALL-zh-CN.md" or "OUTFIT-COMPATIBILITY.md") continue;
+                "INSTALL-zh-CN.md" or "OUTFIT-COMPATIBILITY.md" or "ALT-INPUT-GUARD.md") continue;
             bool known = IsOwnedPayloadName(name) && !name.StartsWith("Configurator/", StringComparison.Ordinal);
             if (!known || entry.Length > 16 * 1024 * 1024 || (total += entry.Length) > 32 * 1024 * 1024)
                 throw new InvalidDataException("内置运行时包含未知或过大的文件：" + name);
@@ -391,7 +391,12 @@ public sealed class InstallablePackage
                 throw new InvalidDataException("内置运行时文件重复：" + name);
         }
         bool hasPreparation = files.TryGetValue(RuntimeSettingsStore.OutfitPreparationName, out byte[]? preparation);
-        if (files.Count != (hasPreparation ? 15 : 14) || !files.ContainsKey("Outfits.ini") ||
+        string[] guardFiles = ["InputGuard/EndfieldJiggleInputGuard.exe", "InputGuard/EndfieldJiggleInputGuard.dll",
+            "InputGuard/MINHOOK-LICENSE.txt", "InputGuard/LICENSE", "InputGuard/README-zh-CN.md"];
+        int guardCount = guardFiles.Count(files.ContainsKey);
+        if (guardCount != 0 && guardCount != guardFiles.Length)
+            throw new InvalidDataException("Alt 输入模块不完整，请重新下载完整安装包。");
+        if (files.Count != (hasPreparation ? 15 : 14) + guardCount || !files.ContainsKey("Outfits.ini") ||
             !files.ContainsKey("EndfieldJiggle.ini") || !files.ContainsKey("Passes.ini"))
             throw new InvalidDataException("内置运行时不完整，需包含对应版本的全部运行文件。");
         RuntimeSettingsStore.ValidateOutfitPreparation(files["Outfits.ini"], preparation);
@@ -414,7 +419,9 @@ public sealed class InstallablePackage
         || name.StartsWith("shaders/", StringComparison.Ordinal) && Path.GetExtension(name) is ".hlsl" or ".bin" or ".shdr"
         || name is "Configurator/EndfieldJiggleConfigurator.exe" or "Configurator/DOTNET-LICENSE.txt" or
             "Configurator/DOTNET-THIRD-PARTY-NOTICES.txt" or "Configurator/LICENSE" or
-            "Configurator/INSTALL-zh-CN.md" or "Configurator/DISCLAIMER.md";
+            "Configurator/INSTALL-zh-CN.md" or "Configurator/DISCLAIMER.md"
+        || name is "InputGuard/EndfieldJiggleInputGuard.exe" or "InputGuard/EndfieldJiggleInputGuard.dll" or
+            "InputGuard/MINHOOK-LICENSE.txt" or "InputGuard/LICENSE" or "InputGuard/README-zh-CN.md";
 
     private static void EnsureKnownActiveInis(string runtime)
     {

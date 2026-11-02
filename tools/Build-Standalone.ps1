@@ -103,6 +103,7 @@ Copy-Item -LiteralPath (Join-Path $RuntimeLicenseDirectory 'ThirdPartyNotices.tx
     -Destination (Join-Path $product 'DOTNET-THIRD-PARTY-NOTICES.txt')
 foreach ($pair in @(
     @('docs\STANDALONE.md','INSTALL-STANDALONE-zh-CN.md'),
+    @('docs\ALT-INPUT-GUARD.md','ALT-INPUT-GUARD.md'),
     @('docs\DIAGNOSTIC-STANDALONE.md','DIAGNOSTIC-STANDALONE.md'),
     @('docs\OUTFIT-COMPATIBILITY.md','OUTFIT-COMPATIBILITY.md'),
     @('docs\V022-STANDALONE-VALIDATION.md','VALIDATION-STANDALONE-zh-CN.md'),

@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.2.7 - Prerelease, 2026-11-02
+
+- Add an optional official-loader input module that isolates mouse movement,
+  buttons and wheel while Alt is held. Release Alt to restore camera input;
+  Escape bypasses isolation until the next Alt hold.
+- Leave camera matrices, game clocks, keyboard state, focus and all fifteen
+  accepted touch runtime files unchanged. Cutscene behavior still needs game acceptance.
+- Start the companion automatically after standalone EFMI initialization.
+  Existing XXMI installations can start it once per session from InputGuard.
+- Synchronize all three packages and the embedded installer, with ownership,
+  backup, restoration and incomplete-module checks.
+
 ## v0.2.6 - 2026-11-02
 
 - Discover runtime files recursively throughout the actual EFMI Mods tree,

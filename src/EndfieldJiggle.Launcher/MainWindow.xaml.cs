@@ -133,6 +133,21 @@ public partial class MainWindow : Window
                 message => Dispatcher.Invoke(() => StatusText.Text = message),
                 launchCancellation.Token, Log));
             Log("EFMI loaded");
+            string guard = Path.Combine(package.ModsDirectory, "EndfieldJiggleEFMI",
+                "InputGuard", "EndfieldJiggleInputGuard.exe");
+            try
+            {
+                if (await InputGuardSession.StartAsync(guard, package.EfmiDirectory))
+                {
+                    StatusText.Text = "EFMI 与 Alt 输入模块已就绪。长按 Alt 隔离鼠标镜头输入；松开恢复。";
+                    Log("Alt input guard ready; separate companion remains active");
+                }
+            }
+            catch (Exception guardError)
+            {
+                StatusText.Text = "EFMI 已加载；Alt 输入模块未启用：" + guardError.Message;
+                Log(guardError.ToString());
+            }
         }
         catch (OperationCanceledException)
         {

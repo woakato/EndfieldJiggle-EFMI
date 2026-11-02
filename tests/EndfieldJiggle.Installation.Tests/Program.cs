@@ -36,9 +36,14 @@ string Efmi(string name)
 
 InstallablePackage package = InstallablePackage.FromRuntimeArchive(File.ReadAllBytes(args[0]));
 bool hasPreparation;
+int guardCount;
 using (ZipArchive payload = ZipFile.OpenRead(args[0]))
+{
     hasPreparation = payload.Entries.Any(entry => entry.FullName == "OutfitPreparation.ini" ||
         entry.FullName.EndsWith("/OutfitPreparation.ini", StringComparison.Ordinal));
+    guardCount = payload.Entries.Count(entry => entry.FullName.StartsWith("InputGuard/", StringComparison.Ordinal) &&
+        !entry.FullName.EndsWith('/'));
+}
 string efmi = Efmi("fresh");
 Dictionary<string, (string Hash, long Time)> protectedFiles = new();
 foreach (string file in new[] { "d3dx.ini", "d3d11.dll", "Mods/unrelated.ini" })
@@ -47,9 +52,29 @@ foreach (string file in new[] { "d3dx.ini", "d3d11.dll", "Mods/unrelated.ini" })
     protectedFiles.Add(path, (Digest(path), File.GetLastWriteTimeUtc(path).Ticks));
 }
 InstallationPreview preview = package.Preview(efmi);
-Check(!preview.IsUpgrade && preview.FileCount == (hasPreparation ? 15 : 14),
+Check(!preview.IsUpgrade && preview.FileCount == (hasPreparation ? 15 : 14) + guardCount,
     "Fresh preview owns the complete reviewed runtime");
 InstallationResult installed = package.Install(preview, requireStopped: false);
+if (guardCount != 0)
+{
+    string guardRoot = Path.Combine(installed.RuntimeDirectory, "InputGuard");
+    Check(Directory.EnumerateFiles(guardRoot).Count() == 5,
+        "Installer carries the complete optional Alt input module and licenses");
+    using MemoryStream incompleteBytes = new();
+    using (ZipArchive source = ZipFile.OpenRead(args[0]))
+    using (ZipArchive incomplete = new(incompleteBytes, ZipArchiveMode.Create, leaveOpen: true))
+    {
+        foreach (ZipArchiveEntry entry in source.Entries)
+        {
+            if (entry.FullName == "InputGuard/EndfieldJiggleInputGuard.dll" || entry.FullName.EndsWith('/')) continue;
+            using Stream input = entry.Open();
+            using Stream output = incomplete.CreateEntry(entry.FullName).Open();
+            input.CopyTo(output);
+        }
+    }
+    Reject(() => InstallablePackage.FromRuntimeArchive(incompleteBytes.ToArray()),
+        "Incomplete input module is rejected before installation");
+}
 bool unifiedInput = File.ReadAllText(Path.Combine(installed.RuntimeDirectory, "EndfieldJiggle.ini"))
     .Contains("global $input_profile = 3", StringComparison.Ordinal);
 Check(new RuntimeSettingsStore(installed.RuntimeDirectory).Read().Settings.DefaultEnabled == unifiedInput,
@@ -100,6 +125,10 @@ InstallablePackage.RestoreInstallation(fresh.RuntimeDirectory, requireStopped: f
 Check(!File.Exists(Path.Combine(fresh.RuntimeDirectory, "EndfieldJiggle.ini")) &&
       File.Exists(Path.Combine(freshRestore, "Mods", "unrelated.ini")),
     "Fresh recovery removes only owned installed files");
+if (guardCount != 0)
+    Check(!Directory.Exists(Path.Combine(fresh.RuntimeDirectory, "InputGuard")) ||
+        !Directory.EnumerateFiles(Path.Combine(fresh.RuntimeDirectory, "InputGuard")).Any(),
+        "Fresh recovery removes optional input module files");
 
 string locked = Efmi("locked");
 string target = Path.Combine(locked, "Mods", "EndfieldJiggleEFMI");

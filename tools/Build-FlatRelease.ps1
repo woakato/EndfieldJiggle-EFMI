@@ -4,7 +4,8 @@ param(
     [Parameter(Mandatory)][string]$DotnetPath,
     [Parameter(Mandatory)][string]$OutputDirectory,
     [string]$PreviousModZipPath,
-    [ValidatePattern('^v\d+\.\d+\.\d+$')][string]$Version = 'v0.2.6'
+    [string]$InputGuardReportPath,
+    [ValidatePattern('^v\d+\.\d+\.\d+$')][string]$Version = 'v0.2.7'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -74,8 +75,29 @@ foreach ($pair in @(
     @('LICENSE','LICENSE'), @('DISCLAIMER.md','DISCLAIMER.md'),
     @('THIRD-PARTY-NOTICES.md','THIRD-PARTY-NOTICES.md'),
     @('docs\INSTALL-zh-CN.md','INSTALL-zh-CN.md'),
+    @('docs\ALT-INPUT-GUARD.md','ALT-INPUT-GUARD.md'),
     @('docs\OUTFIT-COMPATIBILITY.md','OUTFIT-COMPATIBILITY.md')
 )) { Copy-Item -LiteralPath (Join-Path $root $pair[0]) -Destination (Join-Path $mod $pair[1]) }
+$guardCount = 0
+if ($InputGuardReportPath) {
+    $guard = Get-Content -Raw -LiteralPath $InputGuardReportPath | ConvertFrom-Json
+    $expectedGuard = @('EndfieldJiggleInputGuard.exe','EndfieldJiggleInputGuard.dll',
+        'MINHOOK-LICENSE.txt','LICENSE','README-zh-CN.md')
+    if ($guard.kind -cne 'alt-input-guard' -or $guard.inputMode -cne 'hold-alt' -or
+        $guard.changesCameraMatrices -or $guard.changesGameTime -or
+        @($guard.files).Count -ne $expectedGuard.Count -or
+        @($guard.files | Where-Object path -CNotIn $expectedGuard).Count) {
+        throw 'Unexpected input guard build report.'
+    }
+    $guardTarget = Join-Path $mod 'InputGuard'
+    New-Item -ItemType Directory -Path $guardTarget | Out-Null
+    foreach ($file in $guard.files) {
+        $source = Join-Path $guard.packageDirectory $file.path
+        if ((Get-FileHash -LiteralPath $source).Hash -cne $file.sha256) { throw 'Input guard payload changed.' }
+        Copy-Item -LiteralPath $source -Destination $guardTarget
+    }
+    $guardCount = $expectedGuard.Count
+}
 $modZip = Join-Path $build "EndfieldJiggleEFMI-$Version-win64.zip"
 [IO.Compression.ZipFile]::CreateFromDirectory($mod, $modZip, [IO.Compression.CompressionLevel]::Optimal, $false)
 & (Join-Path $PSScriptRoot 'Test-ReleaseRegression.ps1') -ModZipPath $modZip
@@ -106,8 +128,13 @@ $start.ArgumentList.Add('--smoke-test')
 $start.ArgumentList.Add($smokePath)
 $process = [Diagnostics.Process]::Start($start)
 if (!$process.WaitForExit(60000)) { $process.Kill(); $process.WaitForExit(); throw 'Configurator smoke timed out.' }
+if (!(Test-Path -LiteralPath (Join-Path $smokePath 'smoke-report.json'))) {
+    $details = Join-Path $smokePath 'smoke-error.txt'
+    if (Test-Path -LiteralPath $details) { throw ([IO.File]::ReadAllText($details)) }
+    throw "Configurator smoke exited without a report: $($process.ExitCode)"
+}
 $smoke = Get-Content -Raw -LiteralPath (Join-Path $smokePath 'smoke-report.json') | ConvertFrom-Json
-if ($process.ExitCode -ne 0 -or !$smoke.embeddedInstaller -or $smoke.installedFiles -ne ($expectedRuntimeCount + 6) -or !$smoke.stateRecovery -or
+if ($process.ExitCode -ne 0 -or !$smoke.embeddedInstaller -or $smoke.installedFiles -ne ($expectedRuntimeCount + $guardCount + 6) -or !$smoke.stateRecovery -or
     !$smoke.outfitApplyRestore -or !$smoke.installerRestore -or !$smoke.hotSettingsSaveRestore -or
     !$smoke.profiles -or !$smoke.modLibrary -or $smoke.screenshots -ne 10 -or $smoke.liveInstallationModified) {
     throw 'Configurator failed an isolated workflow gate.'
@@ -146,6 +173,7 @@ $reportPath = Join-Path $build 'build-report.json'
     dropInZip=$dropinZip; dropInSha256=(Get-FileHash -LiteralPath $dropinZip).Hash
     configuratorZip=$configZip; configuratorSmoke=(Join-Path $smokePath 'smoke-report.json')
     runtimeFiles=$runtimeFiles; runtimeBytesUnchanged=$true
+    inputGuardReportPath=$InputGuardReportPath;inputGuardFileCount=$guardCount
     archiveLayout='shaders and runtime INIs directly at archive root'
     liveInstallationModified=$false; githubPublished=$false
 } | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $reportPath -Encoding utf8

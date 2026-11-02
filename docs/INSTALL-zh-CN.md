@@ -1,17 +1,17 @@
-# v0.2.6 安装与升级
+# v0.2.7 预发布版安装与升级
 
-v0.2.6 于 2026-11-02 发布：支持 `Mods` 下任意名称的分类目录及多层嵌套，
-配置器按完整运行文件定位，原位升级和恢复不再要求触摸包是直接子目录。
-继承 v0.2.5 本地构建的通用换装适配改进。新增流程通过离线回归，尚无新增游戏实机验收。
+v0.2.7 增加长按 Alt 隔离鼠标镜头输入。松开 Alt 恢复，按 Esc 可临时解除。
+模块不冻结相机矩阵或游戏时间，剧情自动运镜不被主动锁定；剧情内实际
+表现与拾取尚未实机验收，因此本版标为预发布。详见 [输入模块说明](ALT-INPUT-GUARD.md)。
 
-配置器的通用换装分析区分模型与辅助绘制，
+继承 v0.2.6 的分类目录、多层嵌套定位及原位升级恢复。配置器的通用换装分析区分模型与辅助绘制，
 沿命名空间追踪资源别名，允许确认缺失外观贴图后保留作者原引用进行适配。
 缺失网格、骨骼、计算资源或着色器仍会阻止写入。详见
 [换装兼容](OUTFIT-COMPATIBILITY.md)。
 
 沿用 v0.2.4 的全部十五个运行文件。角色界面与大世界仍使用 Alt 加鼠标左键，
 触摸默认开启，Ctrl+Shift+F9 切换。游戏由 EFMI / XXMI 加载触摸 Mod，
-EXE 用于安装、配置和换装适配，不需要常驻。
+配置器用于安装、配置和换装适配，可在保存后关闭；新增的输入模块需要常驻本次会话。
 
 ## 选择安装包
 
@@ -20,31 +20,34 @@ EXE 用于安装、配置和换装适配，不需要常驻。
   整包解压后打开 `EndfieldJiggleLauncher.exe`，选择 `Endfield.exe` 并开启等待，
   再通过官方游戏启动器以 DirectX 11 启动。
   详见 [独立版安装说明](STANDALONE.md)；不要把独立包覆盖到已有 EFMI 目录。
-- 已有 EFMI 且不需要程序：使用纯 Mod 的 `win64.zip`。本次目录识别和通用适配改进
-  位于配置器；需要这些功能时请选择 drop-in 或独立整合版。
+- 已有 EFMI 且不需要配置器：使用纯 Mod 的 `win64.zip`，也附带可选输入模块。
 
 ## 安装
 
 1. 完全退出游戏与 XXMI。
-2. 选择 `EndfieldJiggleEFMI-v0.2.6-drop-in-win64.zip`，包含本次改进的配置器。
+2. 选择 `EndfieldJiggleEFMI-v0.2.7-drop-in-win64.zip`，包含同版配置器与输入模块。
    纯 Mod 包不包含适配程序；已有运行时可仅使用新版配置器。
 3. 已有旧版时先备份到 `Mods` 之外。将 ZIP 解压到 `Mods` 下一个独立目录；
    使用压缩软件的“解压到同名文件夹”即可，也可将文件夹命名为 `EndfieldJiggleEFMI`。
    不要混合版本或覆盖 EFMI 根目录。
 4. 从 XXMI 启动游戏，触摸默认开启；确认原版角色或换装显示正常后进行短距离拖动。
+5. 需要 Alt 镜头隔离时，运行 Mod 内 `InputGuard/EndfieldJiggleInputGuard.exe`，
+   每次游戏会话运行一次并保持运行。它会沿安装位置向上查找 EFMI；独立版自动启动它。
 
 解压后的结构可以是：
 
 ```text
 Mods/
   任意分类目录/
-    EndfieldJiggleEFMI-v0.2.6-drop-in-win64/
+    EndfieldJiggleEFMI-v0.2.7-drop-in-win64/
       shaders/
       EndfieldJiggle.ini
       Passes.ini
       Outfits.ini
       OutfitPreparation.ini
       Configurator/EndfieldJiggleConfigurator.exe
+      InputGuard/EndfieldJiggleInputGuard.exe
+      InputGuard/EndfieldJiggleInputGuard.dll
 ```
 
 纯 Mod 包结构相同，但没有 `Configurator`。压缩包内部没有第二层触摸 Mod 文件夹。
@@ -62,7 +65,7 @@ Alt 可一直按住，松开左键后重新抓取其他位置。
 ## 配置器
 
 拖放包已将 EXE 放在触摸目录的 `Configurator/EndfieldJiggleConfigurator.exe`。
-仅 Mod 包不含 EXE。已保存的参数在关闭配置器后仍生效。
+仅 Mod 包不含配置器，但附带可选输入模块 EXE。已保存的参数在关闭配置器后仍生效。
 参数保存只更新本 Mod 的参数 INI。
 换装适配只在确认后修改所选换装的 INI；不编辑游戏本体、注入 DLL 或全局配置。
 
