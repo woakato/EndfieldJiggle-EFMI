@@ -14,7 +14,7 @@ try {
     $prefix = $roots[0].FullName.Substring(0, $roots[0].FullName.Length - 'EndfieldJiggle.ini'.Length)
     $files = @($archive.Entries | Where-Object {
         $_.FullName.StartsWith($prefix, [StringComparison]::Ordinal) -and
-        $_.FullName.Substring($prefix.Length) -match '^(EndfieldJiggle\.ini|Passes\.ini|Outfits\.ini|OutfitPreparation\.ini|JiggleForge-LICENSE|shaders/[^/]+\.(hlsl|bin))$'
+        $_.FullName.Substring($prefix.Length) -match '^(EndfieldJiggle\.ini|Passes\.ini|Outfits\.ini|OutfitPreparation\.ini|JiggleForge-LICENSE|Licenses/GPL-3\.0\.txt|shaders/[^/]+\.(hlsl|bin))$'
     })
     $preparation = $archive.GetEntry($prefix + 'OutfitPreparation.ini')
     $expectedCount = if ($preparation) { 15 } else { 14 }

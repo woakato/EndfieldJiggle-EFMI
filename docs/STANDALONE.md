@@ -11,7 +11,7 @@ v0.2.7 修订 2：配置器“安装与恢复 → 修复目录”可检查不完
 下一个目录，让 `shaders` 与 INI 直接位于其中。只需默认参数的用户可选纯 Mod 包。
 
 没有 XXMI Launcher 的用户使用 `EndfieldJiggleEFMI-v0.2.7-standalone-win64.zip`。
-这是长按 Alt 隔离镜头鼠标输入的预发布版，新增模块尚未完成大世界和剧情内实机验收。
+这是长按 Alt 隔离镜头鼠标输入的正式版，使用者已确认本次反馈的问题解决。
 它包含官方 EFMI 1.4.8、官方 XXMI 渲染库 1.2.2、保留 v0.2.4 运行文件的触摸 Mod、
 现有配置器和本项目的便携启动器，无需另行安装 XXMI Launcher 或 .NET。
 “独立”指不依赖 XXMI Launcher 安装，渲染仍使用 EFMI / XXMI 的官方库。
@@ -40,7 +40,7 @@ EFMI 加载后，启动器会自动启用 `InputGuard` 后台程序。长按 Alt
 v0.2.4 默认开启触摸，启动时不显示 `TOUCH ON`。
 角色界面与大世界均按住 `Alt+鼠标左键` 拖动，松开左键释放；
 `Ctrl+Shift+F9` 切换开关，`Ctrl+Shift+F7` 强制关闭，`Ctrl+Shift+F8` 诊断。
-可在配置器取消“启动时开启触摸”；稳定版用户可继续使用 v0.2.6，Alt 输入模块由 v0.2.7 预发布提供。
+可在配置器取消“启动时开启触摸”；Alt 输入模块由 v0.2.7 提供。
 手动启动不能自动附加旧版的 `-force-d3d11` 参数，需要在官方启动器确认 DirectX 11。
 只打开官方游戏启动器、不先在本包开启等待，不会自动加载本包。
 等待游戏最多 5 分钟，可取消后重新等待。取消不会关闭游戏，也不会卸载已经开始加载的 EFMI。
@@ -70,6 +70,7 @@ v0.2.4 默认开启触摸，启动时不显示 `TOUCH ON`。
 EndfieldJiggle/
   EndfieldJiggleLauncher.exe
   Start.cmd
+  README.txt
   standalone-manifest.json
   Licenses/
   EFMI/
@@ -82,6 +83,10 @@ EndfieldJiggle/
       EndfieldJiggleEFMI/
         Configurator/EndfieldJiggleConfigurator.exe
 ```
+
+打包修订 3 在整包根目录保留一份 `README.txt` 和一个 `Licenses` 目录，
+不再重复附带各组件说明、重复 GPL 文本或开发验证记录。
+对应源码仍随包保存在 `Sources`，详细说明与测试记录在仓库和源码包中。
 
 启动器只在本包保存路径和日志，不安装文件到游戏目录，不修改游戏资源。
 渲染库会写入本包的 EFMI 日志、用户配置和缓存。

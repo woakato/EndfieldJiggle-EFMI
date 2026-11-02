@@ -20,11 +20,5 @@
                       LogicalName="EndfieldJiggle.Notices.DOTNET-LICENSE.txt"/>
     <EmbeddedResource Include="$(InstallableResourceDirectory)\DOTNET-THIRD-PARTY-NOTICES.txt"
                       LogicalName="EndfieldJiggle.Notices.DOTNET-THIRD-PARTY-NOTICES.txt"/>
-    <EmbeddedResource Include="$(InstallableResourceDirectory)\LICENSE"
-                      LogicalName="EndfieldJiggle.Notices.LICENSE"/>
-    <EmbeddedResource Include="$(InstallableResourceDirectory)\INSTALL-zh-CN.md"
-                      LogicalName="EndfieldJiggle.Notices.INSTALL-zh-CN.md"/>
-    <EmbeddedResource Include="$(InstallableResourceDirectory)\DISCLAIMER.md"
-                      LogicalName="EndfieldJiggle.Notices.DISCLAIMER.md"/>
   </ItemGroup>
 </Project>

@@ -1,6 +1,12 @@
 # Changelog
 
-## v0.2.7 - Prerelease, 2026-11-02
+## v0.2.7 - 2026-11-02
+
+- Promoted revision 2 to stable after the user confirmed the reported issues resolved.
+- Package revision 3: provide one README.txt and consolidate licenses, removing
+  duplicate GPL copies and developer/validation documents from installation ZIPs.
+  Synchronize the embedded installer and retain legacy receipt compatibility.
+  Keep rendering files and input guard binaries unchanged.
 
 - Revision 2: diagnose active touch INIs even when shader resources are missing.
   Preserve the broken workspace in the UI and show each conflicting installation.
@@ -12,7 +18,8 @@
   buttons and wheel while Alt is held. Release Alt to restore camera input;
   Escape bypasses isolation until the next Alt hold.
 - Leave camera matrices, game clocks, keyboard state, focus and all fifteen
-  accepted touch runtime files unchanged. Cutscene behavior still needs game acceptance.
+  accepted touch runtime files unchanged. User acceptance covers the reported issues,
+  rather than an exhaustive character or cutscene matrix.
 - Start the companion automatically after standalone EFMI initialization.
   Existing XXMI installations can start it once per session from InputGuard.
 - Synchronize all three packages and the embedded installer, with ownership,

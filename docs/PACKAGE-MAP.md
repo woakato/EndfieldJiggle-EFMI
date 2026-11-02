@@ -1,5 +1,16 @@
 # Package Identity and Maintenance Status
 
+## v0.2.7 Stable, Package Revision 3
+
+On November 2, 2026 the user confirmed the reported issues resolved and accepted
+revision 2 as stable. Package revision 3 consolidates documentation into one
+README.txt and a Licenses directory in each installation archive. It retains
+all fourteen executable rendering files and both InputGuard binaries; the
+fifteenth historical runtime entry was the identical GPL text, now relocated
+to Licenses/GPL-3.0.txt. Developer documents remain in the corresponding source
+archive. The configurator's embedded installer uses the same layout.
+Older sections below retain their original publication snapshots.
+
 ## v0.2.7 Directory Repair, Revision 2
 
 The November 2, 2026 repair adds complete-payload discovery and a configurator

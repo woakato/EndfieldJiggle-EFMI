@@ -41,7 +41,10 @@ try {
         $prefix = $DropInRuntimePrefix
         if (!$entry.FullName.StartsWith($prefix,[StringComparison]::Ordinal) -or $entry.FullName.EndsWith('/')) { continue }
         $relative = $entry.FullName.Substring($prefix.Length)
-        $path = Assert-UniversalPath $runtime (Join-Path $runtime $relative)
+        if ($relative -ceq 'README.txt') { continue }
+        $path = if ($relative.StartsWith('Licenses/',[StringComparison]::Ordinal)) {
+            Assert-UniversalPath $product (Join-Path $product $relative)
+        } else { Assert-UniversalPath $runtime (Join-Path $runtime $relative) }
         $stream = $entry.Open()
         try { $expected = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream)) }
         finally { $stream.Dispose() }

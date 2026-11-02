@@ -39,8 +39,10 @@ if (Test-Path -LiteralPath $build) {
 $publish = Join-Path $build 'publish'
 $package = Join-Path $build 'package'
 $configurator = Join-Path $package 'Configurator'
+$licenses = Join-Path $package 'Licenses'
 $entryPoint = 'Configurator\EndfieldJiggleConfigurator.exe'
 New-Item -ItemType Directory -Path $configurator -Force | Out-Null
+New-Item -ItemType Directory -Path $licenses | Out-Null
 
 $project = Join-Path $root 'src\EndfieldJiggle.Configurator\EndfieldJiggle.Configurator.csproj'
 $resourceArguments = @()
@@ -52,9 +54,6 @@ if ($RuntimeZipPath) {
     Copy-Item -LiteralPath $runtimeZip -Destination (Join-Path $resources 'InstallableRuntime.zip')
     Copy-Item -LiteralPath $runtimeNotices['LICENSE.txt'] -Destination (Join-Path $resources 'DOTNET-LICENSE.txt')
     Copy-Item -LiteralPath $runtimeNotices['ThirdPartyNotices.txt'] -Destination (Join-Path $resources 'DOTNET-THIRD-PARTY-NOTICES.txt')
-    foreach ($relative in @('LICENSE','DISCLAIMER.md','docs\INSTALL-zh-CN.md')) {
-        Copy-Item -LiteralPath (Join-Path $root $relative) -Destination (Join-Path $resources ([IO.Path]::GetFileName($relative)))
-    }
     $resourceArguments = @("-p:InstallableResourceDirectory=$resources")
 }
 & $DotnetPath publish $project --configuration Release --runtime win-x64 `
@@ -71,13 +70,15 @@ if (!(Test-Path -LiteralPath $executable -PathType Leaf)) {
     throw 'Self-contained configurator executable was not produced.'
 }
 Copy-Item -LiteralPath $executable -Destination (Join-Path $configurator 'EndfieldJiggleConfigurator.exe')
-Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination (Join-Path $package 'LICENSE')
+Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination (Join-Path $licenses 'GPL-3.0.txt')
 Copy-Item -LiteralPath $runtimeNotices['LICENSE.txt'] `
-    -Destination (Join-Path $package 'DOTNET-LICENSE.txt')
+    -Destination (Join-Path $licenses 'DOTNET-LICENSE.txt')
 Copy-Item -LiteralPath $runtimeNotices['ThirdPartyNotices.txt'] `
-    -Destination (Join-Path $package 'DOTNET-THIRD-PARTY-NOTICES.txt')
-Copy-Item -LiteralPath (Join-Path $root 'docs\CONFIGURATOR.md') `
-    -Destination (Join-Path $package 'README-zh-CN.md')
+    -Destination (Join-Path $licenses 'DOTNET-THIRD-PARTY-NOTICES.txt')
+Copy-Item -LiteralPath (Join-Path $root 'THIRD-PARTY-NOTICES.md') `
+    -Destination (Join-Path $licenses 'THIRD-PARTY-NOTICES.txt')
+Copy-Item -LiteralPath (Join-Path $root 'docs\package\README-Mod-zh-CN.txt') `
+    -Destination (Join-Path $package 'README.txt')
 $exeHash = (Get-FileHash -LiteralPath (Join-Path $package $entryPoint) -Algorithm SHA256).Hash
 [IO.File]::WriteAllText((Join-Path $package 'SHA256SUMS.txt'),
     "$exeHash *$entryPoint`n", [Text.UTF8Encoding]::new($false))

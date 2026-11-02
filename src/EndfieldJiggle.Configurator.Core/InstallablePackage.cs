@@ -30,14 +30,13 @@ public sealed partial class InstallablePackage
         Dictionary<string, byte[]> files = ReadRuntimeArchive(zip.ToArray());
         EnsureUnlinked(executablePath);
         files.Add("Configurator/EndfieldJiggleConfigurator.exe", File.ReadAllBytes(executablePath));
-        foreach (string name in new[] { "DOTNET-LICENSE.txt", "DOTNET-THIRD-PARTY-NOTICES.txt",
-                     "LICENSE", "INSTALL-zh-CN.md", "DISCLAIMER.md" })
+        foreach (string name in new[] { "DOTNET-LICENSE.txt", "DOTNET-THIRD-PARTY-NOTICES.txt" })
         {
             using Stream resource = assembly.GetManifestResourceStream("EndfieldJiggle.Notices." + name)
                 ?? throw new InvalidDataException("安装程序缺少许可或安装说明：" + name);
             using MemoryStream content = new();
             resource.CopyTo(content);
-            files.Add("Configurator/" + name, content.ToArray());
+            files.Add("Licenses/" + name, content.ToArray());
         }
         return new(files);
     }
@@ -329,7 +328,8 @@ public sealed partial class InstallablePackage
             ?? throw new InvalidDataException("安装记录无效。");
         if (receipt.Schema != 1 || receipt.Files is null ||
             !string.Equals(receipt.RuntimeDirectory, runtime, StringComparison.OrdinalIgnoreCase) ||
-            receipt.Files.Any(file => file is null || !files.ContainsKey(file.Name)) ||
+            receipt.Files.Any(file => file is null ||
+                !(files.ContainsKey(file.Name) || IsLegacyDocumentationName(file.Name))) ||
             receipt.Files.Select(file => file.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() != receipt.Files.Length)
             throw new InvalidDataException("安装记录不匹配，拒绝覆盖。");
         foreach (InstalledFile file in receipt.Files)
@@ -397,12 +397,18 @@ public sealed partial class InstallablePackage
                 throw new InvalidDataException("内置运行时文件重复：" + name);
         }
         bool hasPreparation = files.TryGetValue(RuntimeSettingsStore.OutfitPreparationName, out byte[]? preparation);
-        string[] guardFiles = ["InputGuard/EndfieldJiggleInputGuard.exe", "InputGuard/EndfieldJiggleInputGuard.dll",
-            "InputGuard/MINHOOK-LICENSE.txt", "InputGuard/LICENSE", "InputGuard/README-zh-CN.md"];
+        bool compact = files.ContainsKey("Licenses/GPL-3.0.txt");
+        string[] guardFiles = compact
+            ? ["InputGuard/EndfieldJiggleInputGuard.exe", "InputGuard/EndfieldJiggleInputGuard.dll",
+                "Licenses/MINHOOK-LICENSE.txt"]
+            : ["InputGuard/EndfieldJiggleInputGuard.exe", "InputGuard/EndfieldJiggleInputGuard.dll",
+                "InputGuard/MINHOOK-LICENSE.txt", "InputGuard/LICENSE", "InputGuard/README-zh-CN.md"];
         int guardCount = guardFiles.Count(files.ContainsKey);
         if (guardCount != 0 && guardCount != guardFiles.Length)
             throw new InvalidDataException("Alt 输入模块不完整，请重新下载完整安装包。");
-        if (files.Count != (hasPreparation ? 15 : 14) + guardCount || !files.ContainsKey("Outfits.ini") ||
+        int documentationCount = compact ? 3 : 1;
+        if (compact && (!files.ContainsKey("README.txt") || !files.ContainsKey("Licenses/THIRD-PARTY-NOTICES.txt")) ||
+            files.Count != (hasPreparation ? 14 : 13) + documentationCount + guardCount || !files.ContainsKey("Outfits.ini") ||
             !files.ContainsKey("EndfieldJiggle.ini") || !files.ContainsKey("Passes.ini"))
             throw new InvalidDataException("内置运行时不完整，需包含对应版本的全部运行文件。");
         RuntimeSettingsStore.ValidateOutfitPreparation(files["Outfits.ini"], preparation);
@@ -421,12 +427,20 @@ public sealed partial class InstallablePackage
     }
 
     private static bool IsOwnedPayloadName(string name) =>
-        name is "EndfieldJiggle.ini" or "Passes.ini" or "Outfits.ini" or "OutfitPreparation.ini" or "JiggleForge-LICENSE"
+        name is "EndfieldJiggle.ini" or "Passes.ini" or "Outfits.ini" or "OutfitPreparation.ini"
         || name.StartsWith("shaders/", StringComparison.Ordinal) && Path.GetExtension(name) is ".hlsl" or ".bin" or ".shdr"
-        || name is "Configurator/EndfieldJiggleConfigurator.exe" or "Configurator/DOTNET-LICENSE.txt" or
+        || name is "Configurator/EndfieldJiggleConfigurator.exe" or
+            "InputGuard/EndfieldJiggleInputGuard.exe" or "InputGuard/EndfieldJiggleInputGuard.dll" or
+            "README.txt" or "Licenses/GPL-3.0.txt" or "Licenses/THIRD-PARTY-NOTICES.txt" or
+            "Licenses/MINHOOK-LICENSE.txt" or "Licenses/DOTNET-LICENSE.txt" or
+            "Licenses/DOTNET-THIRD-PARTY-NOTICES.txt"
+        || IsLegacyDocumentationName(name);
+
+    // Prior receipts remain valid for upgrade and exact restoration.
+    private static bool IsLegacyDocumentationName(string name) =>
+        name is "JiggleForge-LICENSE" or "Configurator/DOTNET-LICENSE.txt" or
             "Configurator/DOTNET-THIRD-PARTY-NOTICES.txt" or "Configurator/LICENSE" or
-            "Configurator/INSTALL-zh-CN.md" or "Configurator/DISCLAIMER.md"
-        || name is "InputGuard/EndfieldJiggleInputGuard.exe" or "InputGuard/EndfieldJiggleInputGuard.dll" or
+            "Configurator/INSTALL-zh-CN.md" or "Configurator/DISCLAIMER.md" or
             "InputGuard/MINHOOK-LICENSE.txt" or "InputGuard/LICENSE" or "InputGuard/README-zh-CN.md";
 
     private static void EnsureKnownActiveInis(string runtime)

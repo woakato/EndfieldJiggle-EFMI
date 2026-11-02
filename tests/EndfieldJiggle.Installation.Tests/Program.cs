@@ -36,13 +36,16 @@ string Efmi(string name)
 
 InstallablePackage package = InstallablePackage.FromRuntimeArchive(File.ReadAllBytes(args[0]));
 bool hasPreparation;
+bool compact;
 int guardCount;
 using (ZipArchive payload = ZipFile.OpenRead(args[0]))
 {
+    compact = payload.GetEntry("Licenses/GPL-3.0.txt") is not null;
     hasPreparation = payload.Entries.Any(entry => entry.FullName == "OutfitPreparation.ini" ||
         entry.FullName.EndsWith("/OutfitPreparation.ini", StringComparison.Ordinal));
     guardCount = payload.Entries.Count(entry => entry.FullName.StartsWith("InputGuard/", StringComparison.Ordinal) &&
         !entry.FullName.EndsWith('/'));
+    if (compact && guardCount != 0) guardCount++;
 }
 string efmi = Efmi("fresh");
 Dictionary<string, (string Hash, long Time)> protectedFiles = new();
@@ -52,13 +55,15 @@ foreach (string file in new[] { "d3dx.ini", "d3d11.dll", "Mods/unrelated.ini" })
     protectedFiles.Add(path, (Digest(path), File.GetLastWriteTimeUtc(path).Ticks));
 }
 InstallationPreview preview = package.Preview(efmi);
-Check(!preview.IsUpgrade && preview.FileCount == (hasPreparation ? 15 : 14) + guardCount,
+Check(!preview.IsUpgrade && preview.FileCount == (hasPreparation ? 15 : 14) + guardCount + (compact ? 2 : 0),
     "Fresh preview owns the complete reviewed runtime");
 InstallationResult installed = package.Install(preview, requireStopped: false);
 if (guardCount != 0)
 {
     string guardRoot = Path.Combine(installed.RuntimeDirectory, "InputGuard");
-    Check(Directory.EnumerateFiles(guardRoot).Count() == 5,
+    Check(Directory.EnumerateFiles(guardRoot).Count() == (compact ? 2 : 5) &&
+        File.Exists(Path.Combine(installed.RuntimeDirectory, compact
+            ? "Licenses/MINHOOK-LICENSE.txt" : "InputGuard/MINHOOK-LICENSE.txt")),
         "Installer carries the complete optional Alt input module and licenses");
     using MemoryStream incompleteBytes = new();
     using (ZipArchive source = ZipFile.OpenRead(args[0]))
@@ -74,6 +79,28 @@ if (guardCount != 0)
     }
     Reject(() => InstallablePackage.FromRuntimeArchive(incompleteBytes.ToArray()),
         "Incomplete input module is rejected before installation");
+}
+if (compact)
+{
+    Check(File.Exists(Path.Combine(installed.RuntimeDirectory, "README.txt")) &&
+        File.Exists(Path.Combine(installed.RuntimeDirectory, "Licenses", "GPL-3.0.txt")) &&
+        !Directory.EnumerateFiles(installed.RuntimeDirectory, "*.md", SearchOption.AllDirectories).Any() &&
+        !File.Exists(Path.Combine(installed.RuntimeDirectory, "JiggleForge-LICENSE")),
+        "Compact installation keeps one README and licenses outside executable directories");
+    using MemoryStream missingNotices = new();
+    using (ZipArchive source = ZipFile.OpenRead(args[0]))
+    using (ZipArchive incomplete = new(missingNotices, ZipArchiveMode.Create, leaveOpen: true))
+    {
+        foreach (ZipArchiveEntry entry in source.Entries)
+        {
+            if (entry.FullName == "Licenses/THIRD-PARTY-NOTICES.txt" || entry.FullName.EndsWith('/')) continue;
+            using Stream input = entry.Open();
+            using Stream output = incomplete.CreateEntry(entry.FullName).Open();
+            input.CopyTo(output);
+        }
+    }
+    Reject(() => InstallablePackage.FromRuntimeArchive(missingNotices.ToArray()),
+        "Compact package cannot silently omit upstream notices");
 }
 bool unifiedInput = File.ReadAllText(Path.Combine(installed.RuntimeDirectory, "EndfieldJiggle.ini"))
     .Contains("global $input_profile = 3", StringComparison.Ordinal);
@@ -142,7 +169,7 @@ using (ZipArchive archive = ZipFile.OpenRead(args[0]))
     {
         if (!entry.FullName.StartsWith(prefix, StringComparison.Ordinal) || entry.FullName.EndsWith('/')) continue;
         string name = entry.FullName[prefix.Length..];
-        if (name is not ("EndfieldJiggle.ini" or "Passes.ini" or "Outfits.ini" or "OutfitPreparation.ini" or "JiggleForge-LICENSE") &&
+        if (name is not ("EndfieldJiggle.ini" or "Passes.ini" or "Outfits.ini" or "OutfitPreparation.ini" or "JiggleForge-LICENSE" or "Licenses/GPL-3.0.txt") &&
             !name.StartsWith("shaders/", StringComparison.Ordinal)) continue;
         if (name.Contains("..") || name.Contains("Configurator/")) throw new Exception("Unsafe fixture archive");
         string path = Path.Combine(target, name);

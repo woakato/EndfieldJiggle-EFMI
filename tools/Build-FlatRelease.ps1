@@ -63,21 +63,23 @@ $expectedRuntimeCount = if ($outfitReceiver) { 15 } else { 14 }
 if ($runtimeFiles.Count -ne $expectedRuntimeCount) { throw 'Unexpected reviewed runtime file set.' }
 $mod = Join-Path $build 'mod'
 New-Item -ItemType Directory -Path $mod | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $mod 'Licenses') | Out-Null
 foreach ($file in $runtimeFiles) {
     $source = Assert-UniversalPath $runtimeReport.packageDirectory (Join-Path $runtimeReport.packageDirectory $file.path)
     if ((Get-FileHash -LiteralPath $source).Hash -cne $file.sha256) { throw "Runtime payload changed: $($file.path)" }
-    $target = Assert-UniversalPath $mod (Join-Path $mod $file.path)
+    $relative = if ($file.path -ceq 'JiggleForge-LICENSE') { 'Licenses\GPL-3.0.txt' } else { $file.path }
+    $target = Assert-UniversalPath $mod (Join-Path $mod $relative)
     New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
     Copy-Item -LiteralPath $source -Destination $target
     [IO.File]::SetLastWriteTimeUtc($target, [IO.File]::GetLastWriteTimeUtc($source))
 }
+if ((Get-FileHash -LiteralPath (Join-Path $mod 'Licenses\GPL-3.0.txt')).Hash -cne
+    (Get-FileHash -LiteralPath (Join-Path $root 'LICENSE')).Hash) {
+    throw 'Project and upstream GPL texts differ; retain both instead of deduplicating.'
+}
 foreach ($pair in @(
-    @('LICENSE','LICENSE'), @('DISCLAIMER.md','DISCLAIMER.md'),
-    @('THIRD-PARTY-NOTICES.md','THIRD-PARTY-NOTICES.md'),
-    @('docs\INSTALL-zh-CN.md','INSTALL-zh-CN.md'),
-    @('docs\ALT-INPUT-GUARD.md','ALT-INPUT-GUARD.md'),
-    @('docs\DIRECTORY-REPAIR-zh-CN.md','DIRECTORY-REPAIR-zh-CN.md'),
-    @('docs\OUTFIT-COMPATIBILITY.md','OUTFIT-COMPATIBILITY.md')
+    @('THIRD-PARTY-NOTICES.md','Licenses\THIRD-PARTY-NOTICES.txt'),
+    @('docs\package\README-Mod-zh-CN.txt','README.txt')
 )) { Copy-Item -LiteralPath (Join-Path $root $pair[0]) -Destination (Join-Path $mod $pair[1]) }
 $guardCount = 0
 if ($InputGuardReportPath) {
@@ -95,9 +97,16 @@ if ($InputGuardReportPath) {
     foreach ($file in $guard.files) {
         $source = Join-Path $guard.packageDirectory $file.path
         if ((Get-FileHash -LiteralPath $source).Hash -cne $file.sha256) { throw 'Input guard payload changed.' }
-        Copy-Item -LiteralPath $source -Destination $guardTarget
+        if ($file.path -cin @('EndfieldJiggleInputGuard.exe','EndfieldJiggleInputGuard.dll')) {
+            Copy-Item -LiteralPath $source -Destination $guardTarget
+        } elseif ($file.path -ceq 'MINHOOK-LICENSE.txt') {
+            Copy-Item -LiteralPath $source -Destination (Join-Path $mod 'Licenses\MINHOOK-LICENSE.txt')
+        } elseif ($file.path -ceq 'LICENSE' -and
+            $file.sha256 -cne (Get-FileHash -LiteralPath (Join-Path $mod 'Licenses\GPL-3.0.txt')).Hash) {
+            throw 'Input guard GPL differs from the shared license.'
+        }
     }
-    $guardCount = $expectedGuard.Count
+    $guardCount = 3
 }
 $modZip = Join-Path $build "EndfieldJiggleEFMI-$Version-win64.zip"
 [IO.Compression.ZipFile]::CreateFromDirectory($mod, $modZip, [IO.Compression.CompressionLevel]::Optimal, $false)
@@ -135,7 +144,7 @@ if (!(Test-Path -LiteralPath (Join-Path $smokePath 'smoke-report.json'))) {
     throw "Configurator smoke exited without a report: $($process.ExitCode)"
 }
 $smoke = Get-Content -Raw -LiteralPath (Join-Path $smokePath 'smoke-report.json') | ConvertFrom-Json
-if ($process.ExitCode -ne 0 -or !$smoke.embeddedInstaller -or $smoke.installedFiles -ne ($expectedRuntimeCount + $guardCount + 6) -or !$smoke.stateRecovery -or
+if ($process.ExitCode -ne 0 -or !$smoke.embeddedInstaller -or $smoke.installedFiles -ne ($expectedRuntimeCount + $guardCount + 5) -or !$smoke.stateRecovery -or
     !$smoke.outfitApplyRestore -or !$smoke.installerRestore -or !$smoke.hotSettingsSaveRestore -or
     !$smoke.profiles -or !$smoke.modLibrary -or $smoke.screenshots -ne 10 -or $smoke.liveInstallationModified) {
     throw 'Configurator failed an isolated workflow gate.'
@@ -146,13 +155,16 @@ $configDirectory = Join-Path $dropin 'Configurator'
 New-Item -ItemType Directory -Path $configDirectory | Out-Null
 $configArchive = [IO.Compression.ZipFile]::OpenRead($configZip)
 try {
-    $allowed = @('Configurator/EndfieldJiggleConfigurator.exe','DOTNET-LICENSE.txt',
-        'DOTNET-THIRD-PARTY-NOTICES.txt','LICENSE','README-zh-CN.md','SHA256SUMS.txt')
+    $allowed = @('Configurator/EndfieldJiggleConfigurator.exe','Licenses/DOTNET-LICENSE.txt',
+        'Licenses/DOTNET-THIRD-PARTY-NOTICES.txt','Licenses/GPL-3.0.txt',
+        'Licenses/THIRD-PARTY-NOTICES.txt','README.txt','SHA256SUMS.txt')
     $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     foreach ($entry in $configArchive.Entries) {
         if ($entry.FullName.EndsWith('/')) { continue }
         if ($entry.FullName -cnotin $allowed -or !$seen.Add($entry.FullName)) { throw 'Unexpected configurator archive entry.' }
-        $target = Join-Path $configDirectory ([IO.Path]::GetFileName($entry.FullName))
+        if ($entry.FullName -cnotin @('Configurator/EndfieldJiggleConfigurator.exe',
+            'Licenses/DOTNET-LICENSE.txt','Licenses/DOTNET-THIRD-PARTY-NOTICES.txt')) { continue }
+        $target = Join-Path $dropin $entry.FullName
         [IO.Compression.ZipFileExtensions]::ExtractToFile($entry,$target,$false)
     }
     if ($seen.Count -ne $allowed.Count) { throw 'Incomplete configurator archive.' }
@@ -160,7 +172,8 @@ try {
 $dropinZip = Join-Path $build "EndfieldJiggleEFMI-$Version-drop-in-win64.zip"
 [IO.Compression.ZipFile]::CreateFromDirectory($dropin, $dropinZip, [IO.Compression.CompressionLevel]::Optimal, $false)
 foreach ($file in $runtimeFiles) {
-    if ((Get-FileHash -LiteralPath (Join-Path $dropin $file.path)).Hash -cne $file.sha256) {
+    $relative = if ($file.path -ceq 'JiggleForge-LICENSE') { 'Licenses\GPL-3.0.txt' } else { $file.path }
+    if ((Get-FileHash -LiteralPath (Join-Path $dropin $relative)).Hash -cne $file.sha256) {
         throw 'Drop-in runtime differs from the reviewed runtime.'
     }
 }
@@ -174,6 +187,7 @@ $reportPath = Join-Path $build 'build-report.json'
     dropInZip=$dropinZip; dropInSha256=(Get-FileHash -LiteralPath $dropinZip).Hash
     configuratorZip=$configZip; configuratorSmoke=(Join-Path $smokePath 'smoke-report.json')
     runtimeFiles=$runtimeFiles; runtimeBytesUnchanged=$true
+    sharedGplPath='Licenses/GPL-3.0.txt'; documentationLayout='README.txt and Licenses/'
     inputGuardReportPath=$InputGuardReportPath;inputGuardFileCount=$guardCount
     archiveLayout='shaders and runtime INIs directly at archive root'
     liveInstallationModified=$false; githubPublished=$false

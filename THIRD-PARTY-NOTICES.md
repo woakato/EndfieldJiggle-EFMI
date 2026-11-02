@@ -25,8 +25,9 @@ The GPL license does not apply to game assets or material from other Mod authors
 The optional Alt input guard uses MinHook v1.3.4, upstream commit
 `c3fcafdc10146beb5919319d0683e44e3c30d537`, under its BSD 2-clause license:
 https://github.com/TsudaKageyu/minhook
-The build fetches that exact source; each input guard package preserves its
-upstream `LICENSE.txt` as `InputGuard/MINHOOK-LICENSE.txt`.
+The build fetches that exact source. Installation packages preserve its
+upstream `LICENSE.txt` as `Licenses/MINHOOK-LICENSE.txt`; the separate developer
+build retains it alongside the input guard.
 The guard is a separate input module loaded through the existing official
 InjectorLib export. It does not replace the injector or EFMI libraries.
 
@@ -34,6 +35,15 @@ The optional Windows configurator is a self-contained .NET 8 WPF application.
 Its Release archive includes the .NET license and third-party notice files
 corresponding to the SDK used for that build. It contains no game runtime or
 captured game shader payload.
+
+Installation packages collect notices in `Licenses` and provide one `README.txt`.
+The byte-identical GPL texts for this project, JiggleForge and the input guard
+share `Licenses/GPL-3.0.txt`. JiggleForge's copyright and author notices remain
+in its shader source headers. Full upstream notices and branding restrictions
+remain in the corresponding source ZIP under `third_party/JiggleForge`.
+This is an independent community Mod, supplied without warranty; game assets,
+third-party Mods, trademarks and upstream branding are not relicensed.
+The repository's full disclaimer is available in the corresponding source ZIP.
 
 The separate Windows Mod Release contains hash-specific rendering compatibility
 rules and adapted shader payloads produced from local game shader captures.

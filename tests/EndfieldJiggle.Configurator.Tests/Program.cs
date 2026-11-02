@@ -65,7 +65,7 @@ using (ZipArchive archive = ZipFile.OpenRead(archivePath))
     string prefix = entryPoint.FullName[..^"EndfieldJiggle.ini".Length];
     ZipArchiveEntry[] files = archive.Entries.Where(entry =>
         entry.FullName.StartsWith(prefix, StringComparison.Ordinal) &&
-        (entry.FullName[prefix.Length..] is "EndfieldJiggle.ini" or "Passes.ini" or "Outfits.ini" or "OutfitPreparation.ini" or "JiggleForge-LICENSE" ||
+        (entry.FullName[prefix.Length..] is "EndfieldJiggle.ini" or "Passes.ini" or "Outfits.ini" or "OutfitPreparation.ini" or "JiggleForge-LICENSE" or "Licenses/GPL-3.0.txt" ||
          entry.FullName[prefix.Length..].StartsWith("shaders/", StringComparison.Ordinal)) &&
         !entry.FullName.EndsWith('/')).ToArray();
     Check(files.Any(entry => entry.FullName == prefix + "EndfieldJiggle.ini") &&

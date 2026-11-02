@@ -98,23 +98,25 @@ $publish = Join-Path $build 'publish'
     "-p:Version=$($Version.TrimStart('v'))"
 if ($LASTEXITCODE -ne 0) { throw 'Standalone launcher publish failed.' }
 Copy-Item -LiteralPath (Join-Path $publish 'EndfieldJiggleLauncher.exe') -Destination $product
-Copy-Item -LiteralPath (Join-Path $RuntimeLicenseDirectory 'LICENSE.txt') -Destination (Join-Path $product 'DOTNET-LICENSE.txt')
-Copy-Item -LiteralPath (Join-Path $RuntimeLicenseDirectory 'ThirdPartyNotices.txt') `
-    -Destination (Join-Path $product 'DOTNET-THIRD-PARTY-NOTICES.txt')
-foreach ($pair in @(
-    @('docs\STANDALONE.md','INSTALL-STANDALONE-zh-CN.md'),
-    @('docs\ALT-INPUT-GUARD.md','ALT-INPUT-GUARD.md'),
-    @('docs\DIRECTORY-REPAIR-zh-CN.md','DIRECTORY-REPAIR-zh-CN.md'),
-    @('docs\DIAGNOSTIC-STANDALONE.md','DIAGNOSTIC-STANDALONE.md'),
-    @('docs\OUTFIT-COMPATIBILITY.md','OUTFIT-COMPATIBILITY.md'),
-    @('docs\V022-STANDALONE-VALIDATION.md','VALIDATION-STANDALONE-zh-CN.md'),
-    @('DISCLAIMER.md','DISCLAIMER.md'), @('LICENSE','LICENSE'),
-    @('THIRD-PARTY-NOTICES.md','THIRD-PARTY-NOTICES.md')
-)) {
-    Copy-Item -LiteralPath (Join-Path $root $pair[0]) -Destination (Join-Path $product $pair[1])
-}
 $noticeDirectory = Join-Path $product 'Licenses'
 New-Item -ItemType Directory -Path $noticeDirectory -Force | Out-Null
+$mod = Join-Path $efmi 'Mods\EndfieldJiggleEFMI'
+$modNotices = Assert-UniversalPath $product (Join-Path $mod 'Licenses')
+if (!(Test-Path -LiteralPath $modNotices -PathType Container)) {
+    throw 'Use the current drop-in package with consolidated Licenses.'
+}
+foreach ($notice in Get-ChildItem -LiteralPath $modNotices -File) {
+    Move-Item -LiteralPath $notice.FullName -Destination $noticeDirectory
+}
+Remove-Item -LiteralPath $modNotices
+$modReadme = Assert-UniversalPath $product (Join-Path $mod 'README.txt')
+Remove-Item -LiteralPath $modReadme
+Copy-Item -LiteralPath (Join-Path $RuntimeLicenseDirectory 'LICENSE.txt') `
+    -Destination (Join-Path $noticeDirectory 'DOTNET-LICENSE.txt')
+Copy-Item -LiteralPath (Join-Path $RuntimeLicenseDirectory 'ThirdPartyNotices.txt') `
+    -Destination (Join-Path $noticeDirectory 'DOTNET-THIRD-PARTY-NOTICES.txt')
+Copy-Item -LiteralPath (Join-Path $root 'docs\package\README-Standalone-zh-CN.txt') `
+    -Destination (Join-Path $product 'README.txt')
 $upstreamNotices = @(
     @('SpectrumQT/EFMI-Package','3d40c54ba86fdfd0e26d8ccbbd3848632f063b06','LICENSE','EFMI-LICENSE.txt'),
     @('SpectrumQT/XXMI-Libs-Package','a7847eae82aaac32175c9a7d199673d5c9323bcd','LICENSE.GPL.txt','XXMI-LIBS-LICENSE.GPL.txt'),
@@ -214,7 +216,8 @@ $report = [ordered]@{
     schema=1; version=$version; packageDirectory=$product; archive=$zip
     launchWorkflow=$manifest.launchWorkflow
     archiveSha256=(Get-FileHash -LiteralPath $zip).Hash.ToLowerInvariant()
-    files=$files; dependencies=$manifest; originalModAndConfiguratorUnchanged=$true; sourceCommit=$SourceCommit
+    files=$files; dependencies=$manifest; runtimeAndConfiguratorBytesUnchanged=$true; sourceCommit=$SourceCommit
+    documentationLayout='README.txt and Licenses/'
     smokeReport=(Join-Path $smokeOutput 'smoke-report.json')
     liveInstallationModified=$false; inGameVerified=$false
 }
