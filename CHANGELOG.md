@@ -2,6 +2,12 @@
 
 ## v0.2.7 - Prerelease, 2026-11-02
 
+- Revision 2: diagnose active touch INIs even when shader resources are missing.
+  Preserve the broken workspace in the UI and show each conflicting installation.
+- Add a previewed directory repair that quarantines verified old INIs outside
+  Mods, fills missing owned resources, preserves settings and rolls back failures.
+  Keep all fifteen touch runtime files and the Alt input module unchanged.
+
 - Add an optional official-loader input module that isolates mouse movement,
   buttons and wheel while Alt is held. Release Alt to restore camera input;
   Escape bypasses isolation until the next Alt hold.

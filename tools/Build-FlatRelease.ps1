@@ -76,6 +76,7 @@ foreach ($pair in @(
     @('THIRD-PARTY-NOTICES.md','THIRD-PARTY-NOTICES.md'),
     @('docs\INSTALL-zh-CN.md','INSTALL-zh-CN.md'),
     @('docs\ALT-INPUT-GUARD.md','ALT-INPUT-GUARD.md'),
+    @('docs\DIRECTORY-REPAIR-zh-CN.md','DIRECTORY-REPAIR-zh-CN.md'),
     @('docs\OUTFIT-COMPATIBILITY.md','OUTFIT-COMPATIBILITY.md')
 )) { Copy-Item -LiteralPath (Join-Path $root $pair[0]) -Destination (Join-Path $mod $pair[1]) }
 $guardCount = 0

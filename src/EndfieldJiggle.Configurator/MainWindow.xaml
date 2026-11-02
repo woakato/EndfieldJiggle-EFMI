@@ -395,6 +395,12 @@
                         <TextBlock x:Name="InstallPreviewText" Text="尚未选择安装目录" TextWrapping="Wrap" Margin="0,0,0,12"/>
                         <WrapPanel>
                             <Button x:Name="InstallButton" Content="安装 / 升级" Click="Install_Click" IsEnabled="False" Style="{StaticResource PrimaryButton}"/>
+                            <Button Click="RepairLayout_Click" ToolTip="检查并修复所选触摸目录">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE90F;" Style="{StaticResource Icon}" Margin="0,0,7,0"/>
+                                    <TextBlock Text="修复目录"/>
+                                </StackPanel>
+                            </Button>
                             <Button x:Name="InstallRestoreButton" Content="恢复安装前版本" Click="InstallRestore_Click" IsEnabled="False"/>
                         </WrapPanel>
                     </StackPanel>

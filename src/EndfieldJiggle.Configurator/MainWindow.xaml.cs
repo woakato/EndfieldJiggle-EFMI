@@ -73,7 +73,7 @@ public partial class MainWindow : Window
                 }
             }
             RuntimeLocation? location = RuntimeLocationLocator.Discover(executableDirectory, workingDirectory,
-                ReadPreviousWorkspace(), launcherDirectories, token);
+                ReadPreviousWorkspace(), launcherDirectories, token, allowProblems: true);
             return (Installer: installer, Location: location);
         }, token);
         token.ThrowIfCancellationRequested();
@@ -214,6 +214,12 @@ public partial class MainWindow : Window
             store = null;
             snapshot = null;
             ApplyButton.IsEnabled = RestoreButton.IsEnabled = false;
+        }
+        if (location.Problem is not null)
+        {
+            SetStatus("触摸目录需要修复。", false);
+            InstallPreviewText.Text = location.Problem;
+            MainTabs.SelectedItem = InstallationTab;
         }
         await RefreshLibraryAsync(token);
         UpdateReloadBinding();

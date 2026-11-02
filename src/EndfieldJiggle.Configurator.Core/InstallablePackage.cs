@@ -7,10 +7,10 @@ using System.Text.Json;
 namespace EndfieldJiggle.Configurator.Core;
 
 public sealed record InstallationPreview(string EfmiDirectory, string RuntimeDirectory,
-    bool IsUpgrade, string Fingerprint, int FileCount);
+    bool IsUpgrade, string Fingerprint, int FileCount, bool RepairMissingFiles = false);
 public sealed record InstallationResult(string RuntimeDirectory, string BackupDirectory, bool SettingsPreserved);
 
-public sealed class InstallablePackage
+public sealed partial class InstallablePackage
 {
     private const string ReceiptName = "EndfieldJiggle.install.json";
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
@@ -44,21 +44,25 @@ public sealed class InstallablePackage
 
     public static InstallablePackage FromRuntimeArchive(byte[] archive) => new(ReadRuntimeArchive(archive));
 
-    public InstallationPreview Preview(string selectedDirectory)
+    public InstallationPreview Preview(string selectedDirectory, bool repairMissingFiles = false)
     {
         if (!Available)
             throw new InvalidOperationException("此配置器没有内置运行时，请使用完整安装包。");
         string efmi = ResolveEfmiDirectory(selectedDirectory);
         EnsureUnlinked(efmi);
-        RuntimeLocation location = RuntimeLocationLocator.Resolve(efmi);
-        string runtime = location.RuntimeDirectory ?? Path.Combine(efmi, "Mods", "EndfieldJiggleEFMI");
+        RuntimeLayout layout = RuntimeLocationLocator.Inspect(efmi);
+        if (layout.Candidates.Count > 1)
+            throw new InvalidDataException("存在多份触摸 INI，请先检查 / 修复目录：" +
+                string.Join("；", layout.Candidates.Select(item => item.Directory)));
+        string runtime = layout.Candidates.SingleOrDefault()?.Directory ??
+            Path.Combine(efmi, "Mods", "EndfieldJiggleEFMI");
         EnsureUnlinked(runtime);
         bool upgrade = Directory.Exists(runtime) && Directory.EnumerateFileSystemEntries(runtime).Any();
         if (upgrade)
         {
             _ = new RuntimeSettingsStore(runtime).Read();
             EnsureKnownActiveInis(runtime);
-            ValidateReceipt(runtime);
+            ValidateReceipt(runtime, repairMissingFiles);
             foreach ((string name, byte[] bytes) in files.Where(pair =>
                          !pair.Key.EndsWith(".ini", StringComparison.Ordinal) &&
                          !pair.Key.StartsWith("Configurator/", StringComparison.Ordinal)))
@@ -69,13 +73,13 @@ public sealed class InstallablePackage
                     throw new IOException("旧运行时资源与已审核版本不同，拒绝覆盖：" + name);
             }
         }
-        return new(efmi, runtime, upgrade, Fingerprint(runtime), files.Count);
+        return new(efmi, runtime, upgrade, Fingerprint(runtime), files.Count, repairMissingFiles);
     }
 
     public InstallationResult Install(InstallationPreview preview, bool requireStopped = true)
     {
         if (requireStopped) EnsureStopped();
-        InstallationPreview current = Preview(preview.EfmiDirectory);
+        InstallationPreview current = Preview(preview.EfmiDirectory, preview.RepairMissingFiles);
         if (current != preview)
             throw new IOException("安装目录自预览后已变化，请重新选择目录。");
         TouchSettings? previousSettings = current.IsUpgrade
@@ -316,7 +320,7 @@ public sealed class InstallablePackage
         return session;
     }
 
-    private void ValidateReceipt(string runtime)
+    private void ValidateReceipt(string runtime, bool allowMissingFiles = false)
     {
         string path = Inside(runtime, ReceiptName);
         EnsureUnlinked(path);
@@ -334,6 +338,7 @@ public sealed class InstallablePackage
             EnsureUnlinked(owned);
             // Settings are intentionally editable through the optional configurator.
             if (file.Name is "EndfieldJiggle.ini" or "Passes.ini" or "Outfits.ini") continue;
+            if (allowMissingFiles && !File.Exists(owned)) continue;
             if (!File.Exists(owned) || Hash(File.ReadAllBytes(owned)) != file.Sha256)
                 throw new IOException("已安装文件另被修改，拒绝覆盖：" + file.Name);
         }
@@ -380,7 +385,8 @@ public sealed class InstallablePackage
             string name = entry.FullName[prefix.Length..].Replace('\\', '/');
             _ = Inside(Path.GetTempPath(), name);
             if (name is "LICENSE" or "THIRD-PARTY-NOTICES.md" or "DISCLAIMER.md" or
-                "INSTALL-zh-CN.md" or "OUTFIT-COMPATIBILITY.md" or "ALT-INPUT-GUARD.md") continue;
+                "INSTALL-zh-CN.md" or "OUTFIT-COMPATIBILITY.md" or "ALT-INPUT-GUARD.md" or
+                "DIRECTORY-REPAIR-zh-CN.md") continue;
             bool known = IsOwnedPayloadName(name) && !name.StartsWith("Configurator/", StringComparison.Ordinal);
             if (!known || entry.Length > 16 * 1024 * 1024 || (total += entry.Length) > 32 * 1024 * 1024)
                 throw new InvalidDataException("内置运行时包含未知或过大的文件：" + name);

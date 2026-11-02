@@ -62,7 +62,8 @@ public partial class MainWindow
 
     private async Task OpenWorkspaceAsync(string directory, CancellationToken token = default)
     {
-        RuntimeLocation location = await Task.Run(() => RuntimeLocationLocator.Resolve(directory, token), token);
+        RuntimeLocation location = await Task.Run(() =>
+            RuntimeLocationLocator.Resolve(directory, token, allowProblems: true), token);
         await SelectEfmiAsync(location, token);
         MainTabs.SelectedItem = store is null ? InstallationTab : LibraryTab;
     }
@@ -332,6 +333,8 @@ public partial class MainWindow
             {
                 schema = 1, version = InstallablePackage.ApplicationVersion, runtime = store?.Root, efmi = EfmiPathBox.Text,
                 reloadBinding, efmiInput = EfmiInputDiagnostics.Read(EfmiPathBox.Text),
+                runtimeLayout = string.IsNullOrEmpty(EfmiPathBox.Text) ? null :
+                    RuntimeLocationLocator.Inspect(EfmiPathBox.Text, token),
                 pendingSettings = ReadControls(), savedSettings = snapshot?.Settings,
                 conflicts, outfit = outfitStore?.Root, outfitSummary = OutfitSummaryText.Text,
                 inGameVerified = false,

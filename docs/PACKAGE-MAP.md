@@ -1,5 +1,14 @@
 # Package Identity and Maintenance Status
 
+## v0.2.7 Directory Repair, Revision 2
+
+The November 2, 2026 repair adds complete-payload discovery and a configurator
+repair transaction for enabled residual INIs. All fifteen rendering runtime files
+and the Alt input module remain byte-identical to the first v0.2.7 prerelease.
+See [directory repair instructions](DIRECTORY-REPAIR-zh-CN.md). Isolated loader
+validation and in-game dragging are tracked separately; no new game acceptance
+is claimed. Older publication sections below describe their original snapshots.
+
 ## Current Release: v0.2.6
 
 v0.2.6 (November 2, 2026) adds generic outfit inspection and adaptation from

@@ -124,6 +124,18 @@ public partial class MainWindow
         }
         stateStore.Restore(requireStopped: false);
         InstallablePackage.RestoreInstallation(result.RuntimeDirectory, requireStopped: false);
+        string orphan = Path.Combine(efmi, "Mods", "OldTouch");
+        Directory.CreateDirectory(orphan);
+        foreach (string name in new[] { "EndfieldJiggle.ini", "Passes.ini", "Outfits.ini", "OutfitPreparation.ini" })
+            File.Copy(Path.Combine(nestedRuntime, name), Path.Combine(orphan, name));
+        await OpenWorkspaceAsync(efmi);
+        if (store is not null || !InstallPreviewText.Text.Contains("触摸 INI", StringComparison.Ordinal))
+            throw new InvalidDataException("Broken layout diagnosis was hidden in the UI.");
+        LayoutRepairResult repaired = package.RepairLayout(package.PreviewLayoutRepair(nestedRuntime), requireStopped: false);
+        await OpenWorkspaceAsync(efmi);
+        if (store?.Root != nestedRuntime || snapshot?.Settings != originalSettings)
+            throw new InvalidDataException("Layout repair did not return to the selected runtime with settings intact.");
+        InstallablePackage.RestoreInstallation(repaired.Installation.RuntimeDirectory, requireStopped: false);
         if (!File.Exists(source) || !File.Exists(Path.Combine(efmi, "d3dx.ini")))
             throw new InvalidDataException("Recovery changed unrelated fixture files.");
         File.WriteAllText(Path.Combine(output, "smoke-report.json"), JsonSerializer.Serialize(new
@@ -134,6 +146,7 @@ public partial class MainWindow
             defaultOnAltMouseControls = true, startupCanBeDisabled = true,
             auxiliaryDrawClassification = true, textureWarningAdaptation = true, textureWarningRetained = true,
             nestedRuntimeDiscovery = true, nestedUpgradeRestore = true,
+            brokenLayoutDiagnosis = true, layoutRepair = true,
             productVersion = InstallablePackage.ApplicationVersion,
             liveInstallationModified = false, inGameVerified = false,
         }, new JsonSerializerOptions { WriteIndented = true }));
