@@ -1,5 +1,8 @@
 # EndfieldJiggle EFMI
 
+文档导航：[文档索引](docs/README.md) · [工具索引](tools/README.md) ·
+[当前包身份](docs/PACKAGE-MAP.md) · [版本历史](docs/PACKAGE-HISTORY.md)
+
 面向《明日方舟：终末地》的开源角色交互实验项目，提供 XXMI 拖放包与独立便携包。
 通过鼠标拖动角色表面，并在松开后产生回弹，让兼容的原版模型具有实时形变效果。
 
