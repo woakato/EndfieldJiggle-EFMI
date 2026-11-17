@@ -66,6 +66,23 @@ public partial class MainWindow
         QaqmRecoveryPlan recovered = await InspectStateAsync();
         if (recovered.Issues.Count != 0 || recovered.MissingHosts.Count != 0)
             throw new InvalidDataException("Sample recovery not recognized.");
+        DiagnosticSnapshot diagnostics = await Task.Run(() => DiagnosticSnapshotCollector.Capture(
+            efmi, nestedRuntime, outfit, Path.Combine(output, "configurator.log")));
+        if (diagnostics.Layout.Value?.Candidates.Count != 1 ||
+            diagnostics.SavedSettings.Value is null || diagnostics.Files.Value is null ||
+            diagnostics.InputGuard.Value is null || diagnostics.Outfit.Value is null ||
+            diagnostics.Qaqm.Value?.Applicable != true)
+            throw new InvalidDataException("Expanded read-only diagnostic snapshot is incomplete.");
+        using (JsonDocument report = JsonDocument.Parse(await BuildDiagnosticsReportAsync(default)))
+        {
+            JsonElement root = report.RootElement;
+            if (root.GetProperty("schema").GetInt32() != 2 ||
+                root.GetProperty("diagnostics").GetProperty("outfit").GetProperty("value").ValueKind != JsonValueKind.Object ||
+                root.GetProperty("diagnostics").GetProperty("qaqm").GetProperty("value")
+                    .GetProperty("applicable").GetBoolean() != true ||
+                root.GetProperty("inGameVerified").GetBoolean())
+                throw new InvalidDataException("Exported diagnostic JSON does not include the selected outfit.");
+        }
         await InspectOutfitAsync();
         if (outfitStore is null || outfitInspection?.SupportedDraws.Count != 1 ||
             outfitInspection.AuxiliaryDraws.Count != 1 || outfitInspection.MissingTextureResources.Count != 1 ||
@@ -147,6 +164,8 @@ public partial class MainWindow
             auxiliaryDrawClassification = true, textureWarningAdaptation = true, textureWarningRetained = true,
             nestedRuntimeDiscovery = true, nestedUpgradeRestore = true,
             brokenLayoutDiagnosis = true, layoutRepair = true,
+            expandedDiagnostics = true, selectedOutfitDiagnostics = true, optionalQaqmDiagnostics = true,
+            exportedDiagnosticJson = true,
             productVersion = InstallablePackage.ApplicationVersion,
             liveInstallationModified = false, inGameVerified = false,
         }, new JsonSerializerOptions { WriteIndented = true }));

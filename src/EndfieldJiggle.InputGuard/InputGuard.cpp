@@ -19,6 +19,9 @@ std::array<void*, 9> targets{};
 size_t targetCount = 0;
 #ifdef EJ_INPUT_GUARD_TESTING
 Sample testSample{};
+bool testUiCursor = false;
+bool testPhysicalCursor = false;
+POINT physicalCursorForTest{};
 #endif
 
 decltype(&GetCursorPos) realGetCursorPos = nullptr;
@@ -37,6 +40,22 @@ struct Exclusive {
 };
 
 bool Held(int key) { return (GetAsyncKeyState(key) & 0x8000) != 0; }
+
+BOOL PhysicalCursor(LPPOINT point) {
+#ifdef EJ_INPUT_GUARD_TESTING
+    if (testPhysicalCursor && point) { *point = physicalCursorForTest; return TRUE; }
+#endif
+    return realGetCursorPos(point);
+}
+
+bool UiCursorVisible() {
+#ifdef EJ_INPUT_GUARD_TESTING
+    return testUiCursor;
+#else
+    CURSORINFO cursor{sizeof(cursor)};
+    return GetCursorInfo(&cursor) && (cursor.flags & CURSOR_SHOWING) != 0;
+#endif
+}
 
 Sample ReadSample() {
 #ifdef EJ_INPUT_GUARD_TESTING
@@ -71,13 +90,16 @@ Decision Evaluate() {
 BOOL WINAPI GuardGetCursorPos(LPPOINT point) {
     MEMORY_BASIC_INFORMATION caller{};
     const bool knownCaller = VirtualQuery(_ReturnAddress(), &caller, sizeof(caller)) != 0;
+    const bool uiCaller = knownCaller && caller.AllocationBase == GetModuleHandleW(L"UnityPlayer.dll");
     const bool gameCaller = knownCaller && (caller.AllocationBase == GetModuleHandleW(nullptr) ||
-        caller.AllocationBase == GetModuleHandleW(L"UnityPlayer.dll") ||
+        uiCaller ||
         caller.AllocationBase == GetModuleHandleW(L"GameAssembly.dll"));
     // EFMI and User32 must keep reading the physical cursor for picking.
-    if (!point || !gameCaller) return realGetCursorPos(point);
+    if (!point || !gameCaller) return PhysicalCursor(point);
     const auto decision = Evaluate();
-    if (!decision.motion) return realGetCursorPos(point);
+    // UI hit testing needs the physical position; camera deltas remain filtered on both input paths.
+    if (!decision.motion || (uiCaller && !decision.draining && UiCursorVisible()))
+        return PhysicalCursor(point);
     Exclusive lock;
     *point = anchor;
     return TRUE;
@@ -236,6 +258,15 @@ void SetTestSample(Sample sample) {
     }
     Refresh();
 }
+
+void SetUiCursorForTest(bool visible) { testUiCursor = visible; }
+
+void SetPhysicalCursorForTest(POINT point) {
+    physicalCursorForTest = point;
+    testPhysicalCursor = true;
+}
+
+void ClearPhysicalCursorForTest() { testPhysicalCursor = false; }
 
 BOOL MovePhysicalCursorForTest(int x, int y) { return realSetCursorPos(x, y); }
 

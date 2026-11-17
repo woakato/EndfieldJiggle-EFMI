@@ -74,9 +74,11 @@ void TestPolicy() {
     Check(policy.Update(sample).buttons, "touch button remains isolated");
     sample.alt = false;
     auto released = policy.Update(sample);
-    Check(!released.motion && released.buttons, "Alt release restores movement and drains a held button");
+    Check(released.motion && released.buttons && released.draining,
+        "Alt release keeps camera isolated until the held UI button is released");
     sample.buttons = false;
-    Check(!policy.Update(sample).buttons, "mouse release ends button draining");
+    Check(!policy.Update(sample).buttons && !policy.Update(sample).motion,
+        "mouse release ends button and motion draining");
     sample.buttons = true;
     sample.alt = true;
     Check(!policy.Update(sample).motion, "Alt does not steal a preexisting camera drag");
@@ -124,11 +126,21 @@ void TestPackets() {
     FilterMouse(mouse, {true, true}, absolute);
     Check(mouse.lLastX == 0 && mouse.lLastY == 0, "relative camera motion removed");
     Check(mouse.usButtonFlags == 0 && mouse.usButtonData == 0 && mouse.ulRawButtons == 0,
-        "raw clicks and zoom removed");
+        "raw left press and wheel do not start camera drag");
     Check(mouse.ulExtraInformation == 42, "unrelated packet data retained");
     mouse = original;
-    FilterMouse(mouse, {false, true}, absolute);
-    Check(mouse.lLastX == 120 && mouse.usButtonFlags == 0, "button drain keeps camera movement");
+    FilterMouse(mouse, {true, true, true}, absolute);
+    Check(mouse.lLastX == 0 && mouse.usButtonFlags == 0,
+        "button drain keeps camera frozen and rejects a new press");
+    mouse = original;
+    mouse.usButtonFlags = RI_MOUSE_LEFT_BUTTON_UP;
+    FilterMouse(mouse, {true, true, true}, absolute);
+    Check(mouse.usButtonFlags == 0, "raw button drain stays isolated");
+    mouse.usButtonFlags = RI_MOUSE_LEFT_BUTTON_UP | RI_MOUSE_RIGHT_BUTTON_UP | RI_MOUSE_WHEEL;
+    mouse.ulRawButtons = 0;
+    FilterMouse(mouse, {true, true}, absolute);
+    Check(mouse.usButtonFlags == 0 && mouse.usButtonData == 0,
+        "raw left release, right button and wheel stay isolated");
     mouse.usFlags = MOUSE_MOVE_ABSOLUTE;
     mouse.lLastX = 30000;
     mouse.lLastY = 20000;
@@ -137,12 +149,23 @@ void TestPackets() {
     mouse.lLastY = 25000;
     FilterMouse(mouse, {true, true}, absolute);
     Check(mouse.lLastX == 30000 && mouse.lLastY == 20000, "absolute devices keep their last free position");
-    for (UINT value : {WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_MOUSEHWHEEL, WM_LBUTTONDOWN,
-        WM_LBUTTONUP, WM_RBUTTONDBLCLK, WM_XBUTTONDOWN}) {
+    for (UINT value : {WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_MOUSEHWHEEL,
+        WM_RBUTTONDBLCLK, WM_XBUTTONDOWN}) {
         MSG message{};
         message.message = value;
         FilterMessage(message, {true, true});
         Check(message.message == WM_NULL, "legacy camera message suppressed");
+    }
+    for (UINT value : {WM_LBUTTONDOWN, WM_LBUTTONUP, WM_LBUTTONDBLCLK}) {
+        MSG message{};
+        message.message = value;
+        FilterMessage(message, {true, true});
+        Check(message.message == value, "UI left button passes while camera motion is isolated");
+        FilterMessage(message, {true, true, true});
+        if (value == WM_LBUTTONUP)
+            Check(message.message == value, "UI left release passes during Alt button drain");
+        else
+            Check(message.message == WM_NULL, "new UI presses stay blocked during button drain");
     }
     for (UINT value : {WM_TIMER, WM_KEYDOWN, WM_SYSKEYDOWN, WM_INPUT, WM_PAINT, WM_APP + 1}) {
         MSG message{};
@@ -157,8 +180,12 @@ void TestActualHooks() {
     GetModuleFileNameW(nullptr, self, MAX_PATH);
     HMODULE probe = LoadLibraryW((std::filesystem::path(self).parent_path() / L"input_cursor_probe.dll").c_str());
     Check(probe != nullptr, "load an external cursor-reader fixture");
+    HMODULE uiProbe = LoadLibraryW((std::filesystem::path(self).parent_path() / L"UnityPlayer.dll").c_str());
+    Check(uiProbe != nullptr, "load an isolated Unity input-layer fixture");
     const auto readPicker = reinterpret_cast<BOOL(WINAPI*)(POINT*)>(GetProcAddress(probe, "ReadProbeCursor"));
+    const auto readUi = reinterpret_cast<BOOL(WINAPI*)(POINT*)>(GetProcAddress(uiProbe, "ReadProbeCursor"));
     Check(readPicker != nullptr, "external cursor reader available");
+    Check(readUi != nullptr, "Unity input-layer cursor reader available");
     const auto cursorInfoApi = reinterpret_cast<const void*>(
         GetProcAddress(GetModuleHandleW(L"user32.dll"), "GetCursorInfo"));
     unsigned char cursorInfoCode[16]{};
@@ -177,24 +204,43 @@ void TestActualHooks() {
         Check(GetCursorInfo(&cursor), "EFMI cursor-info API remains available");
         Check(std::memcmp(cursorInfoCode, cursorInfoApi, sizeof(cursorInfoCode)) == 0,
             "EFMI GetCursorInfo code remains unmodified");
-        POINT physical{};
-        readPicker(&physical);
-        Check(MovePhysicalCursorForTest(physical.x + 3, physical.y + 3), "physical cursor path can move");
+        SetPhysicalCursorForTest({anchor.x + 7, anchor.y + 7});
         POINT picked{};
-        readPicker(&picked);
-        MovePhysicalCursorForTest(physical.x, physical.y);
-        Check(picked.x != physical.x || picked.y != physical.y,
-            "external picker module sees a moving cursor while game camera coordinates stay fixed");
+        Check(readPicker(&picked) && picked.x == anchor.x + 7 && picked.y == anchor.y + 7,
+            "external picker sees the physical cursor away from any character");
+        SetUiCursorForTest(true);
+        POINT ui{};
+        Check(readUi(&ui) && ui.x == picked.x && ui.y == picked.y,
+            "visible Unity UI sees the physical cursor away from any character");
         GetCursorPos(&after);
-        Check(after.x == anchor.x && after.y == anchor.y, "physical movement does not move the game cursor");
+        Check(after.x == anchor.x && after.y == anchor.y,
+            "game camera cursor stays anchored while UI coordinates move");
         MSG message{};
         PeekMessageW(&message, nullptr, 0, 0, PM_NOREMOVE);
+        Check(PostThreadMessageW(GetCurrentThreadId(), WM_MOUSEMOVE, 0, 1), "post isolated pointer move");
+        Check(PeekMessageW(&message, nullptr, WM_MOUSEMOVE, WM_MOUSEMOVE, PM_REMOVE) &&
+            message.message == WM_NULL, "visible UI does not reopen legacy camera motion");
         Check(PostThreadMessageW(GetCurrentThreadId(), WM_MOUSEWHEEL, 120, 1), "post isolated wheel message");
         Check(PeekMessageW(&message, nullptr, WM_MOUSEWHEEL, WM_MOUSEWHEEL, PM_REMOVE) &&
             message.message == WM_NULL, "actual PeekMessageW removes camera zoom");
         Check(PostThreadMessageA(GetCurrentThreadId(), WM_LBUTTONDOWN, 1, 1), "post isolated button message");
         Check(GetMessageA(&message, nullptr, WM_LBUTTONDOWN, WM_LBUTTONDOWN) > 0 &&
-            message.message == WM_NULL, "actual GetMessageA removes camera drag");
+            message.message == WM_LBUTTONDOWN, "actual GetMessageA preserves UI click");
+        SetTestSample({true, true, true, false, false, false, true});
+        Check(PostThreadMessageA(GetCurrentThreadId(), WM_MOUSEMOVE, 1, 2), "post drag outside character");
+        Check(GetMessageA(&message, nullptr, WM_MOUSEMOVE, WM_MOUSEMOVE) > 0 &&
+            message.message == WM_NULL, "drag outside character does not reopen legacy camera motion");
+        Check(PostThreadMessageW(GetCurrentThreadId(), WM_LBUTTONUP, 0, 2), "post UI button release");
+        Check(GetMessageW(&message, nullptr, WM_LBUTTONUP, WM_LBUTTONUP) > 0 &&
+            message.message == WM_LBUTTONUP, "actual GetMessageW delivers UI release");
+        SetTestSample({true, true, true, false, false, false, false});
+        Check(readUi(&ui) && ui.x == picked.x && ui.y == picked.y,
+            "UI cursor is restored after Alt-held left release");
+        SetTestSample({true, true, true, false, false, false, true});
+        SetTestSample({true, true, false, false, false, false, true});
+        Check(readUi(&ui) && ui.x == anchor.x && ui.y == anchor.y,
+            "Alt release during a held button freezes Unity coordinates until button release");
+        SetTestSample({true, true, false, false, false, false, false});
         const ULONGLONG started = GetTickCount64();
         int narrativeFrames = 0;
         while (narrativeFrames < 20) {
@@ -215,9 +261,11 @@ void TestActualHooks() {
             message.message == WM_LBUTTONDOWN, "actual GetMessageW bypasses on Escape");
         StopForTest();
         FreeLibrary(probe);
+        FreeLibrary(uiProbe);
     } catch (...) {
         StopForTest();
         FreeLibrary(probe);
+        FreeLibrary(uiProbe);
         throw;
     }
 }

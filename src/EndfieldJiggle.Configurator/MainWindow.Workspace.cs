@@ -324,24 +324,51 @@ public partial class MainWindow
 
     private async void ExportDiagnostics_Click(object sender, RoutedEventArgs e)
     {
+        SaveFileDialog dialog = new() { Filter = "诊断报告 (*.json)|*.json", FileName = "EndfieldJiggle-diagnostics.json" };
+        if (dialog.ShowDialog(this) != true) return;
         await RunOperationAsync("生成诊断报告", async token =>
         {
-            IReadOnlyList<KeyConflict> conflicts = await CheckConflictsAsync(ReadControls(), token);
-            SaveFileDialog dialog = new() { Filter = "诊断报告 (*.json)|*.json", FileName = "EndfieldJiggle-diagnostics.json" };
-            if (dialog.ShowDialog(this) != true) return;
-            string json = JsonSerializer.Serialize(new
-            {
-                schema = 1, version = InstallablePackage.ApplicationVersion, runtime = store?.Root, efmi = EfmiPathBox.Text,
-                reloadBinding, efmiInput = EfmiInputDiagnostics.Read(EfmiPathBox.Text),
-                runtimeLayout = string.IsNullOrEmpty(EfmiPathBox.Text) ? null :
-                    RuntimeLocationLocator.Inspect(EfmiPathBox.Text, token),
-                pendingSettings = ReadControls(), savedSettings = snapshot?.Settings,
-                conflicts, outfit = outfitStore?.Root, outfitSummary = OutfitSummaryText.Text,
-                inGameVerified = false,
-            }, new JsonSerializerOptions { WriteIndented = true });
+            string json = await BuildDiagnosticsReportAsync(token);
             File.WriteAllText(dialog.FileName, json, new UTF8Encoding(false));
             FooterText.Text = "报告已导出到本机，未上传：" + dialog.FileName;
         });
+    }
+
+    private async Task<string> BuildDiagnosticsReportAsync(CancellationToken token)
+    {
+        DiagnosticSection<TouchSettings> pending;
+        try { pending = new(ReadControls(), null); }
+        catch (Exception error) when (error is not OperationCanceledException)
+        {
+            pending = new(null, error.GetType().Name + ": " + error.Message);
+        }
+        string? efmi = string.IsNullOrWhiteSpace(EfmiPathBox.Text) ? null : EfmiPathBox.Text;
+        string? runtime = store?.Root;
+        string? outfit = string.IsNullOrWhiteSpace(OutfitPathBox.Text) ? null : OutfitPathBox.Text;
+        string log = Path.Combine(Path.GetDirectoryName(WorkspacePath)!, "configurator.log");
+        DiagnosticSnapshot diagnostics = await Task.Run(
+            () => DiagnosticSnapshotCollector.Capture(efmi, runtime, outfit, log, token), token);
+        DiagnosticSection<IReadOnlyList<KeyConflict>> conflicts;
+        if (store is null || pending.Value is null)
+            conflicts = new(null, "未选择有效运行时或待保存按键。");
+        else
+        {
+            try { conflicts = new(await CheckConflictsAsync(pending.Value, token), null); }
+            catch (Exception error) when (error is not OperationCanceledException)
+            {
+                conflicts = new(null, error.GetType().Name + ": " + error.Message);
+            }
+        }
+        token.ThrowIfCancellationRequested();
+        return JsonSerializer.Serialize(new
+        {
+            schema = 2, version = InstallablePackage.ApplicationVersion,
+            runtime, efmi, outfit, diagnostics.CapturedAtUtc,
+            system = new { os = Environment.OSVersion.VersionString,
+                processArchitecture = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString() },
+            pendingSettings = pending, conflicts, diagnostics,
+            inGameVerified = false,
+        }, new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
     }
 
     private async Task RunOperationAsync(string name, Func<CancellationToken, Task> operation, bool writing = false)

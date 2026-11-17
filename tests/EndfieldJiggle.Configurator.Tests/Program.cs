@@ -1,6 +1,8 @@
 using System.IO.Compression;
+using System.IO.MemoryMappedFiles;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using EndfieldJiggle.Configurator.Core;
 
 if (args.Length < 1)
@@ -108,6 +110,68 @@ string randomShader = packageFiles.Keys.First(path => path.StartsWith(
 
 RuntimeSettingsStore store = new(runtime);
 RuntimeSettingsSnapshot original = store.Read();
+string diagnosticsLog = Path.Combine(testRoot, "configurator.log");
+File.WriteAllText(diagnosticsLog, "local configurator failure\n");
+string efmiLog = Path.Combine(testRoot, "EFMI", "d3d11_log.txt");
+File.WriteAllText(efmiLog, new string('x', 40 * 1024) + "\nrecent loader warning\n");
+string receiptPath = Path.Combine(runtime, "EndfieldJiggle.install.json");
+string receiptJson = JsonSerializer.Serialize(new
+{
+    Schema = 1, Version = "v0.2.7",
+    Files = new[]
+    {
+        new { Name = "Passes.ini", Sha256 = Hex(packageFiles["Passes.ini"].Bytes) },
+        new { Name = "InputGuard/EndfieldJiggleInputGuard.dll", Sha256 = new string('A', 64) },
+    },
+});
+File.WriteAllText(receiptPath, receiptJson);
+DiagnosticSnapshot diagnostic = DiagnosticSnapshotCollector.Capture(
+    Path.Combine(testRoot, "EFMI"), runtime, null, diagnosticsLog);
+Check(diagnostic.Layout.Value?.Candidates.Count == 1 &&
+      diagnostic.SavedSettings.Value == original.Settings &&
+      diagnostic.Receipt.Value is { Present: true, Version: "v0.2.7" } &&
+      diagnostic.Files.Value?.Single(file => file.Path == Path.Combine(runtime, "Passes.ini")).MatchesReceipt == true &&
+      diagnostic.Files.Value?.Single(file => file.Path == Path.Combine(runtime, "InputGuard", "EndfieldJiggleInputGuard.dll")).Present == false &&
+      diagnostic.InputGuard.Value is not null && diagnostic.Outfit.Error is not null,
+    "Diagnostic export independently includes layout, saved settings, receipt, missing input module and process status");
+Check(diagnostic.Logs.Count == 2 && diagnostic.Logs[0].Tail == "local configurator failure\n" &&
+      diagnostic.Logs[1].Truncated && diagnostic.Logs[1].Tail?.Contains("recent loader warning") == true,
+    "Diagnostic logs include only a bounded recent tail");
+File.WriteAllText(receiptPath, "{");
+diagnostic = DiagnosticSnapshotCollector.Capture(Path.Combine(testRoot, "EFMI"), runtime, null, diagnosticsLog);
+Check(diagnostic.Receipt.Error is not null && diagnostic.Files.Value is not null &&
+      diagnostic.SavedSettings.Value == original.Settings,
+    "A corrupt installation receipt does not hide other diagnostic sections");
+File.WriteAllText(receiptPath, receiptJson);
+int sessionPid = int.MaxValue - Environment.ProcessId;
+string mappingName = "Local\\EndfieldJiggle.InputGuard." + sessionPid;
+using (MemoryMappedFile mapping = MemoryMappedFile.CreateNew(mappingName, 24))
+{
+    using MemoryMappedViewAccessor view = mapping.CreateViewAccessor();
+    view.Write(0, 1);
+    view.Write(4, 1);
+    view.Write(8, 1);
+    view.Write(12, Environment.ProcessId);
+    view.Write(16, Environment.TickCount64);
+    Check(DiagnosticSnapshotCollector.ReadSession(sessionPid).Ready,
+        "Diagnostic report reads a live guard mapping without writing to it");
+    view.Write(16, Environment.TickCount64 - 2000);
+    Check(!DiagnosticSnapshotCollector.ReadSession(sessionPid).Ready,
+        "Diagnostic report distinguishes stale input guard heartbeat");
+}
+string genericOutfit = Path.Combine(testRoot, "EFMI", "Mods", "GenericOutfit");
+Directory.CreateDirectory(genericOutfit);
+File.WriteAllText(Path.Combine(genericOutfit, "body.ini"),
+    "namespace = Example\n[TextureOverrideBody]\nhash = 01234567\ndrawindexed = 12, 0, 0\n");
+diagnostic = DiagnosticSnapshotCollector.Capture(
+    Path.Combine(testRoot, "EFMI"), runtime, genericOutfit, diagnosticsLog);
+Check(diagnostic.Outfit.Value is not null &&
+      diagnostic.Qaqm.Value is { Applicable: false, Plan: null } &&
+      diagnostic.Qaqm.Error is null,
+    "Generic outfits are diagnosed without assuming QAQM is installed or required: " +
+    $"outfit={diagnostic.Outfit.Error}, qaqm={diagnostic.Qaqm.Error}, " +
+    $"applicable={diagnostic.Qaqm.Value?.Applicable}, note={diagnostic.Qaqm.Value?.Note}, " +
+    $"issues={string.Join(';', diagnostic.Qaqm.Value?.Plan?.Issues.Select(issue => issue.Code) ?? [])}");
 bool includesOutfits = packageFiles.ContainsKey("Outfits.ini");
 bool includesPreparation = packageFiles.ContainsKey("OutfitPreparation.ini");
 bool unifiedInput = Encoding.UTF8.GetString(packageFiles["EndfieldJiggle.ini"].Bytes)
