@@ -13,6 +13,13 @@ public sealed record InstallationResult(string RuntimeDirectory, string BackupDi
 public sealed partial class InstallablePackage
 {
     private const string ReceiptName = "EndfieldJiggle.install.json";
+    private static readonly Dictionary<string, string> PriorReleaseFiles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["InputGuard/EndfieldJiggleInputGuard.dll"] =
+            "E18217164AFD793B141BF00003A24695741440A796EBF6BD30B316DA3772E79B",
+        ["README.txt"] =
+            "CD553ED48C1BE59CA9CB2887E71B078100960A7AAA0B64A67E41310C511386AE",
+    };
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly Dictionary<string, byte[]> files;
     public bool Available => files.Count != 0;
@@ -70,8 +77,14 @@ public sealed partial class InstallablePackage
             {
                 string owned = Inside(runtime, name);
                 EnsureUnlinked(owned);
-                if (File.Exists(owned) && !File.ReadAllBytes(owned).AsSpan().SequenceEqual(bytes))
-                    throw new IOException("旧运行时资源与已审核版本不同，拒绝覆盖：" + name);
+                if (File.Exists(owned))
+                {
+                    byte[] installed = File.ReadAllBytes(owned);
+                    if (!installed.AsSpan().SequenceEqual(bytes) &&
+                        (!PriorReleaseFiles.TryGetValue(name, out string? priorHash) ||
+                         Hash(installed) != priorHash))
+                        throw new IOException("旧运行时资源与已审核版本不同，拒绝覆盖：" + name);
+                }
             }
         }
         return new(efmi, runtime, upgrade, Fingerprint(runtime), files.Count, repairMissingFiles);
