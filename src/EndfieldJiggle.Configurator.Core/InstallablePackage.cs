@@ -16,7 +16,9 @@ public sealed partial class InstallablePackage
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly Dictionary<string, byte[]> files;
     public bool Available => files.Count != 0;
-    public static string ApplicationVersion => typeof(InstallablePackage).Assembly.GetName().Version!.ToString(3);
+    public static string ApplicationVersion =>
+        typeof(InstallablePackage).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion ?? typeof(InstallablePackage).Assembly.GetName().Version!.ToString(3);
 
     private InstallablePackage(Dictionary<string, byte[]> files) => this.files = files;
 

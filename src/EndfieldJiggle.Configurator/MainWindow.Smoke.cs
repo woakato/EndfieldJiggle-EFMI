@@ -80,7 +80,8 @@ public partial class MainWindow
                 root.GetProperty("diagnostics").GetProperty("outfit").GetProperty("value").ValueKind != JsonValueKind.Object ||
                 root.GetProperty("diagnostics").GetProperty("qaqm").GetProperty("value")
                     .GetProperty("applicable").GetBoolean() != true ||
-                root.GetProperty("inGameVerified").GetBoolean())
+                root.GetProperty("inGameVerified").GetBoolean() ||
+                !DiagnosticOverviewText.Text.Contains("QAQM", StringComparison.Ordinal))
                 throw new InvalidDataException("Exported diagnostic JSON does not include the selected outfit.");
         }
         await InspectOutfitAsync();

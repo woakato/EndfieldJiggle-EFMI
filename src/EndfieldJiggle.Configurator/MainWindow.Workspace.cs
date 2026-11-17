@@ -322,6 +322,51 @@ public partial class MainWindow
         });
     }
 
+    private async void RefreshDiagnostics_Click(object sender, RoutedEventArgs e)
+    {
+        await RunOperationAsync("检查现场状态", async token =>
+        {
+            DiagnosticSnapshot diagnostics = await CaptureCurrentDiagnosticsAsync(token);
+            UpdateDiagnosticOverview(diagnostics);
+            SetStatus("现场诊断已刷新。", true);
+        });
+    }
+
+    private Task<DiagnosticSnapshot> CaptureCurrentDiagnosticsAsync(CancellationToken token)
+    {
+        string? efmi = string.IsNullOrWhiteSpace(EfmiPathBox.Text) ? null : EfmiPathBox.Text;
+        string? runtime = store?.Root;
+        string? outfit = string.IsNullOrWhiteSpace(OutfitPathBox.Text) ? null : OutfitPathBox.Text;
+        string log = Path.Combine(Path.GetDirectoryName(WorkspacePath)!, "configurator.log");
+        return Task.Run(() => DiagnosticSnapshotCollector.Capture(efmi, runtime, outfit, log, token), token);
+    }
+
+    private void UpdateDiagnosticOverview(DiagnosticSnapshot diagnostics)
+    {
+        IReadOnlyList<DiagnosticFile>? files = diagnostics.Files.Value;
+        int missing = files?.Count(file => !file.Present && file.Error is null) ?? 0;
+        int changed = files?.Count(file => file.MatchesReceipt == false) ?? 0;
+        int unreadable = files?.Count(file => file.Error is not null) ?? 0;
+        string layout = diagnostics.Layout.Value is { } found
+            ? $"{found.Candidates.Count} 个触摸目录" +
+              (found.Candidates.Any(item => item.Problem is not null) ? "，存在布局问题" : "")
+            : diagnostics.Layout.Error ?? "未检查";
+        string guard = diagnostics.InputGuard.Value is { } input
+            ? $"{input.Games.Count} 个游戏进程，{input.Games.Count(game => game.Ready)} 个守护会话就绪"
+            : diagnostics.InputGuard.Error ?? "未检查";
+        string outfit = diagnostics.Outfit.Value is { } inspected
+            ? $"支持 {inspected.Supported} / 未支持 {inspected.Unsupported}，必要资源缺失 {inspected.MissingRequired.Count}"
+            : diagnostics.Outfit.Error ?? "未检查";
+        string qaqm = diagnostics.Qaqm.Value is { Applicable: false } ? "不适用" :
+            diagnostics.Qaqm.Value is { Applicable: true, Plan: { } plan }
+                ? $"{plan.Issues.Count} 项未解决" :
+            diagnostics.Qaqm.Value?.Note ?? diagnostics.Qaqm.Error ?? "未检查";
+        DiagnosticOverviewText.Text =
+            $"目录：{layout}\n文件：{(files is null ? diagnostics.Files.Error ?? "未检查" :
+                $"{files.Count} 项，缺失 {missing} / 与安装记录不符 {changed} / 无法读取 {unreadable}")}\n" +
+            $"InputGuard：{guard}\n换装：{outfit} · QAQM：{qaqm}";
+    }
+
     private async void ExportDiagnostics_Click(object sender, RoutedEventArgs e)
     {
         SaveFileDialog dialog = new() { Filter = "诊断报告 (*.json)|*.json", FileName = "EndfieldJiggle-diagnostics.json" };
@@ -345,9 +390,8 @@ public partial class MainWindow
         string? efmi = string.IsNullOrWhiteSpace(EfmiPathBox.Text) ? null : EfmiPathBox.Text;
         string? runtime = store?.Root;
         string? outfit = string.IsNullOrWhiteSpace(OutfitPathBox.Text) ? null : OutfitPathBox.Text;
-        string log = Path.Combine(Path.GetDirectoryName(WorkspacePath)!, "configurator.log");
-        DiagnosticSnapshot diagnostics = await Task.Run(
-            () => DiagnosticSnapshotCollector.Capture(efmi, runtime, outfit, log, token), token);
+        DiagnosticSnapshot diagnostics = await CaptureCurrentDiagnosticsAsync(token);
+        UpdateDiagnosticOverview(diagnostics);
         DiagnosticSection<IReadOnlyList<KeyConflict>> conflicts;
         if (store is null || pending.Value is null)
             conflicts = new(null, "未选择有效运行时或待保存按键。");

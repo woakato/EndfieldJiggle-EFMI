@@ -1,13 +1,13 @@
 # Package Identity and Maintenance Status
 
-## Local v0.2.7 Diagnostic and Alt Input Repair
+## v0.2.7a Diagnostic and Alt Input Prerelease
 
 The November 18, 2026 repair branch starts from the v0.2.7 revision 3
 package-source commit `ce551ce`. It expands the configurator's read-only,
-partial-failure diagnostic export and keeps Alt mouse-motion isolation while
-letting left-button UI events through. QAQM is optional, not a requirement for
-other outfits. This branch is not published or deployed; isolated tests do not
-establish in-game camera and UI acceptance. The v0.2.8 work is separately
+partial-failure diagnostic export and adds a live summary. Alt mouse-motion
+isolation remains active while window left-button UI events pass through.
+QAQM is optional, not a requirement for other outfits. The prerelease has no
+in-game camera/UI acceptance and has not been deployed. The v0.2.8 work is separately
 preserved on `codex/v028-future-wip-20261118`.
 
 ## v0.2.7 Stable, Package Revision 3

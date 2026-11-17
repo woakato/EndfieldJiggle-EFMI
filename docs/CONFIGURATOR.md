@@ -69,7 +69,7 @@ Mod 库按当前 EFMI 的 `Mods` 目录扫描，可搜索、显示停用项并�
 “恢复 Alt+左键”将待保存的拖动键恢复为 Alt 加鼠标左键。
 JSON 导入只加载待保存参数；导出不更改当前 Mod。
 
-诊断页显示实际 `reload_config` 与其它 INI 中的潜在按键冲突。
+诊断页显示实际 `reload_config`、其它 INI 中的潜在按键冲突及可刷新的现场摘要。
 `Mods Display` 是 EFMI 的所有 Mod 总开关，和触摸开关、Draw 诊断不同。
 诊断页会分别列出总开关及临时原版 `show_original` 的实际绑定。
 扫描不求值第三方 condition，不是“当前一定触发”的结论，

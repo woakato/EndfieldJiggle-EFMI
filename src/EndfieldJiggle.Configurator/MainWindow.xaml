@@ -362,20 +362,30 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <TextBlock Text="重载配置" Style="{StaticResource Heading}"/>
                     <TextBlock x:Name="ReloadBindingText" Grid.Row="1" Text="尚未读取 EFMI 的重载绑定" TextWrapping="Wrap" Margin="0,0,0,18"/>
                     <DockPanel Grid.Row="2" Margin="0,0,0,10">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Click="RefreshDiagnostics_Click" ToolTip="刷新现场诊断">
+                            <TextBlock Text="&#xE72C;" Style="{StaticResource Icon}"/>
+                        </Button>
+                        <TextBlock Text="现场状态" Style="{StaticResource Heading}" Margin="0" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <TextBlock x:Name="DiagnosticOverviewText" Grid.Row="3" Text="尚未检查" TextWrapping="Wrap"
+                               Margin="0,0,0,18" Foreground="#58616B"/>
+                    <DockPanel Grid.Row="4" Margin="0,0,0,10">
                         <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Click="CheckConflicts_Click" ToolTip="扫描潜在按键冲突">
                             <TextBlock Text="&#xE72C;" Style="{StaticResource Icon}"/>
                         </Button>
                         <TextBlock Text="潜在按键冲突" Style="{StaticResource Heading}" Margin="0" VerticalAlignment="Center"/>
                     </DockPanel>
-                    <TextBox x:Name="ConflictDetailsText" Grid.Row="3" IsReadOnly="True" TextWrapping="Wrap"
+                    <TextBox x:Name="ConflictDetailsText" Grid.Row="5" IsReadOnly="True" TextWrapping="Wrap"
                              VerticalScrollBarVisibility="Auto" Background="#F7F8F9" Padding="12"/>
-                    <Button Grid.Row="4" Content="导出诊断报告" HorizontalAlignment="Left" Click="ExportDiagnostics_Click" Margin="0,14,0,0"/>
+                    <Button Grid.Row="6" Content="导出诊断报告" HorizontalAlignment="Left" Click="ExportDiagnostics_Click" Margin="0,14,0,0"/>
                 </Grid>
             </TabItem>
             <TabItem x:Name="InstallationTab" Header="安装与恢复">
