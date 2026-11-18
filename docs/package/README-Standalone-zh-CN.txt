@@ -1,4 +1,4 @@
-EndfieldJiggle EFMI v0.2.7a 独立便携版（预发布）
+EndfieldJiggle EFMI v0.2.7b 独立便携版（预发布）
 
 首次启动
 1. 退出游戏与 XXMI，将整包解压到可写的短目录，例如 D:\EJ。
@@ -19,7 +19,8 @@ Ctrl+Shift+F9 切换触摸，Ctrl+Shift+F7 关闭，Ctrl+Shift+F8 诊断。
 
 配置、换装与修复
 从启动器打开配置器可修改参数、管理 Mod 及适配换装，保存后可关闭。
-诊断页可刷新现场状态并导出文件、InputGuard、日志与换装检查报告。
+复现问题后保持游戏运行，从诊断页导出 EFMI、InputGuard、日志与换装检查报告。
+使用自带启动器时，未找到 XXMI Launcher 配置是正常情况。
 QAQM 专项检查仅在换装引用它时适用。
 其他换装放进 EFMI/Mods；换装作者要求的额外依赖需自行安装。
 不能拖动时，退出游戏及 XXMI，打开配置器“安装与恢复 → 修复目录”，

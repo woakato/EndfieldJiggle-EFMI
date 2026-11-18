@@ -137,6 +137,50 @@ Check(diagnostic.Layout.Value?.Candidates.Count == 1 &&
 Check(diagnostic.Logs.Count == 2 && diagnostic.Logs[0].Tail == "local configurator failure\n" &&
       diagnostic.Logs[1].Truncated && diagnostic.Logs[1].Tail?.Contains("recent loader warning") == true,
     "Diagnostic logs include only a bounded recent tail");
+string launcherConfig = Path.Combine(testRoot, XxmiDiagnostics.ConfigName);
+File.WriteAllText(launcherConfig, JsonSerializer.Serialize(new
+{
+    Launcher = new { active_importer = "EFMI", enabled_importers = new[] { "EFMI" } },
+    Importers = new { EFMI = new { Importer = new { importer_folder = "EFMI/", game_folder = "Game" },
+        Migoto = new { input = true } } },
+    Packages = new { packages = new { EFMI = new { deployed_version = "fixture" } } },
+    privateSetting = "private fixture payload",
+}), new UTF8Encoding(true));
+File.WriteAllText(Path.Combine(testRoot, "XXMI Launcher Log.txt"),
+    new string('a', 40 * 1024) + "\nPermissionError: private fixture payload\n");
+diagnostic = DiagnosticSnapshotCollector.Capture(Path.Combine(testRoot, "EFMI"), runtime, null, diagnosticsLog,
+    xxmiConfig: launcherConfig);
+XxmiStatus xxmi = diagnostic.Xxmi.Value!;
+Check(xxmi.Profiles.Single() is { MatchesSelectedDirectory: true, ActiveImporter: "EFMI", EfmiListed: true,
+    EfmiDeployedVersion: "fixture", MigotoInput: true, Log: { Truncated: true, ModifiedUtc: not null } } &&
+    xxmi.Profiles.Single().Log.ErrorTypes.Contains("PermissionError") &&
+    !JsonSerializer.Serialize(xxmi).Contains("private fixture payload"),
+    "Explicit XXMI profile resolves relative EFMI paths and exports only allowlisted log evidence");
+Check(XxmiDiagnostics.Read(Path.Combine(testRoot, "EFMI"), null, default).Profiles
+    .Any(p => p.ConfigPath == launcherConfig && p.MatchesSelectedDirectory == true),
+    "Automatic discovery finds an XXMI root above the selected EFMI");
+XxmiStatus mismatch = XxmiDiagnostics.Inspect(Path.Combine(testRoot, "different"), [launcherConfig], 0, default);
+Check(mismatch.Profiles.Single().MatchesSelectedDirectory == false && mismatch.Summary.Contains("另一套 EFMI"),
+    "The wrong EFMI installation is identified even with the launcher closed");
+string secondConfig = Path.Combine(testRoot, "other-config.json");
+File.WriteAllText(secondConfig, "{");
+XxmiStatus multiple = XxmiDiagnostics.Inspect(null, [launcherConfig, secondConfig], 0, default);
+Check(multiple.Profiles.Count == 2 && multiple.Profiles[1].ConfigError is not null &&
+    multiple.Profiles[0].MatchesSelectedDirectory is null && multiple.Summary.Contains("2 份"),
+    "A second, broken launcher profile is separate from the first and missing evidence stays unknown");
+File.WriteAllText(secondConfig, """{"Launcher":{"active_importer":"WWMI","enabled_importers":[]},"Importers":{"EFMI":{"Migoto":{"input":false}}}}""");
+XxmiStatus off = XxmiDiagnostics.Inspect(null, [secondConfig], 0, default);
+Check(off.Summary.Contains("WWMI") && off.Summary.Contains("没有 EFMI") && off.Summary.Contains("input 已关闭") &&
+    XxmiDiagnostics.Inspect(null, [], 0, default).Profiles.Count == 0,
+    "Disabled or unselected EFMI and input settings are distinguished from a missing launcher");
+string iniFixture = Path.Combine(testRoot, "ini-settings");
+Directory.CreateDirectory(iniFixture);
+File.WriteAllText(Path.Combine(iniFixture, "d3dx.ini"),
+    "[Logging]\ninput=0\nlog_level=warn\n[Include]\ninclude_recursive=Mods\nexclude_recursive=DISABLED*\nexclude_recursive=desktop.ini\n");
+var efmiSettings = EfmiInputDiagnostics.Read(iniFixture);
+Check(efmiSettings.InputAtStartup is null && efmiSettings.LogLevel == "warn" &&
+    efmiSettings.IncludeRecursive.SequenceEqual(["Mods"]) && efmiSettings.ExcludeRecursive.SequenceEqual(["DISABLED*", "desktop.ini"]),
+    "Loader include rules preserve all values and input logging is not mistaken for disabled controls");
 File.WriteAllText(receiptPath, "{");
 diagnostic = DiagnosticSnapshotCollector.Capture(Path.Combine(testRoot, "EFMI"), runtime, null, diagnosticsLog);
 Check(diagnostic.Receipt.Error is not null && diagnostic.Files.Value is not null &&

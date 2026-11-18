@@ -1,5 +1,11 @@
 # Package Identity and Maintenance Status
 
+## v0.2.7b Alt Input and XXMI Diagnostics Prerelease
+
+Based on v0.2.7a. The input guard holds Unity's cursor at the press location during
+an Alt-left drag. The configurator compares the selected EFMI path against XXMI
+profiles and exports launcher and loader settings. See [release notes](RELEASE-v0.2.7b-zh-CN.md).
+
 ## v0.2.7a Diagnostic and Alt Input Prerelease
 
 The November 18, 2026 repair branch starts from the v0.2.7 revision 3

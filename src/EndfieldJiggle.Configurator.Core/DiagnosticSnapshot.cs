@@ -10,7 +10,7 @@ public sealed record DiagnosticSection<T>(T? Value, string? Error) where T : cla
 public sealed record DiagnosticFile(string Path, bool Present, long? Bytes, DateTime? ModifiedUtc,
     string? Sha256, string? ReceiptSha256, bool? MatchesReceipt, string? Error);
 public sealed record DiagnosticLog(string Path, bool Present, long? Bytes, bool Truncated,
-    string? Tail, string? Error);
+    string? Tail, string? Error, DateTime? ModifiedUtc = null);
 public sealed record ReceiptDiagnostic(bool Present, string? Version, IReadOnlyDictionary<string, string> Files);
 public sealed record InputGuardSession(int GamePid, bool MappingPresent, int? Protocol, int? Status,
     bool? Enabled, int? CompanionPid, long? HeartbeatAgeMs, bool Ready, string? Error);
@@ -30,7 +30,8 @@ public sealed record DiagnosticSnapshot(DateTimeOffset CapturedAtUtc,
     DiagnosticSection<InputGuardDiagnostic> InputGuard,
     IReadOnlyList<DiagnosticLog> Logs,
     DiagnosticSection<OutfitDiagnostic> Outfit,
-    DiagnosticSection<OptionalQaqmDiagnostic> Qaqm);
+    DiagnosticSection<OptionalQaqmDiagnostic> Qaqm,
+    DiagnosticSection<XxmiStatus> Xxmi);
 
 public static class DiagnosticSnapshotCollector
 {
@@ -47,7 +48,7 @@ public static class DiagnosticSnapshotCollector
     ];
 
     public static DiagnosticSnapshot Capture(string? efmi, string? runtime, string? outfit,
-        string configuratorLog, CancellationToken token = default)
+        string configuratorLog, CancellationToken token = default, string? xxmiConfig = null)
     {
         token.ThrowIfCancellationRequested();
         var layout = Section(efmi, () => RuntimeLocationLocator.Inspect(efmi!, token));
@@ -69,7 +70,7 @@ public static class DiagnosticSnapshotCollector
             ? new DiagnosticSection<OptionalQaqmDiagnostic>(null, "未选择换装。")
             : Section(runtime, () => ReadQaqm(outfit, runtime!, token));
         return new(DateTimeOffset.UtcNow, layout, input, settings, receipt, files, guard,
-            logs, inspectedOutfit, qaqm);
+            logs, inspectedOutfit, qaqm, TryRead(() => XxmiDiagnostics.Read(efmi, xxmiConfig, token)));
     }
 
     private static DiagnosticSection<T> Section<T>(string? directory, Func<T> read) where T : class =>
@@ -217,7 +218,7 @@ public static class DiagnosticSnapshotCollector
         }
     }
 
-    private static DiagnosticLog ReadLog(string path)
+    internal static DiagnosticLog ReadLog(string path)
     {
         try
         {
@@ -231,7 +232,7 @@ public static class DiagnosticSnapshotCollector
             stream.ReadExactly(bytes);
             int start = truncated ? Array.IndexOf(bytes, (byte)'\n') + 1 : 0;
             return new(path, true, length, truncated,
-                Encoding.UTF8.GetString(bytes.AsSpan(start)), null);
+                Encoding.UTF8.GetString(bytes.AsSpan(start)), null, File.GetLastWriteTimeUtc(path));
         }
         catch (Exception error) when (error is not OperationCanceledException and not OutOfMemoryException)
         {

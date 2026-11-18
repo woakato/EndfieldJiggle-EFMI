@@ -71,6 +71,7 @@ void TestPolicy() {
     sample.alt = true;
     Check(policy.Update(sample).motion, "Alt alone locks mouse motion");
     sample.buttons = true;
+    sample.leftButton = true;
     Check(policy.Update(sample).buttons, "touch button remains isolated");
     sample.alt = false;
     auto released = policy.Update(sample);
@@ -210,8 +211,8 @@ void TestActualHooks() {
             "external picker sees the physical cursor away from any character");
         SetUiCursorForTest(true);
         POINT ui{};
-        Check(readUi(&ui) && ui.x == picked.x && ui.y == picked.y,
-            "visible Unity UI sees the physical cursor away from any character");
+        Check(readUi(&ui) && ui.x == anchor.x && ui.y == anchor.y,
+            "visible Unity UI keeps the camera cursor anchored without a click");
         GetCursorPos(&after);
         Check(after.x == anchor.x && after.y == anchor.y,
             "game camera cursor stays anchored while UI coordinates move");
@@ -223,10 +224,17 @@ void TestActualHooks() {
         Check(PostThreadMessageW(GetCurrentThreadId(), WM_MOUSEWHEEL, 120, 1), "post isolated wheel message");
         Check(PeekMessageW(&message, nullptr, WM_MOUSEWHEEL, WM_MOUSEWHEEL, PM_REMOVE) &&
             message.message == WM_NULL, "actual PeekMessageW removes camera zoom");
+        SetTestSample({true, true, true, false, false, false, true, true});
         Check(PostThreadMessageA(GetCurrentThreadId(), WM_LBUTTONDOWN, 1, 1), "post isolated button message");
         Check(GetMessageA(&message, nullptr, WM_LBUTTONDOWN, WM_LBUTTONDOWN) > 0 &&
             message.message == WM_LBUTTONDOWN, "actual GetMessageA preserves UI click");
-        SetTestSample({true, true, true, false, false, false, true});
+        Check(readUi(&ui) && ui.x == picked.x && ui.y == picked.y,
+            "visible Unity UI sees the physical cursor during Alt left click");
+        SetPhysicalCursorForTest({picked.x + 48, picked.y + 64});
+        POINT movingPicker{};
+        Check(readPicker(&movingPicker) && movingPicker.y == picked.y + 64 &&
+            readUi(&ui) && ui.x == picked.x && ui.y == picked.y,
+            "Alt background drag keeps the Unity click point fixed while EFMI picking moves");
         Check(PostThreadMessageA(GetCurrentThreadId(), WM_MOUSEMOVE, 1, 2), "post drag outside character");
         Check(GetMessageA(&message, nullptr, WM_MOUSEMOVE, WM_MOUSEMOVE) > 0 &&
             message.message == WM_NULL, "drag outside character does not reopen legacy camera motion");
@@ -234,10 +242,10 @@ void TestActualHooks() {
         Check(GetMessageW(&message, nullptr, WM_LBUTTONUP, WM_LBUTTONUP) > 0 &&
             message.message == WM_LBUTTONUP, "actual GetMessageW delivers UI release");
         SetTestSample({true, true, true, false, false, false, false});
-        Check(readUi(&ui) && ui.x == picked.x && ui.y == picked.y,
-            "UI cursor is restored after Alt-held left release");
-        SetTestSample({true, true, true, false, false, false, true});
-        SetTestSample({true, true, false, false, false, false, true});
+        Check(readUi(&ui) && ui.x == anchor.x && ui.y == anchor.y,
+            "camera cursor stays anchored after Alt-held left release");
+        SetTestSample({true, true, true, false, false, false, true, true});
+        SetTestSample({true, true, false, false, false, false, true, true});
         Check(readUi(&ui) && ui.x == anchor.x && ui.y == anchor.y,
             "Alt release during a held button freezes Unity coordinates until button release");
         SetTestSample({true, true, false, false, false, false, false});

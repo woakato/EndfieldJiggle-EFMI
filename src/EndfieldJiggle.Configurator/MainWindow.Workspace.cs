@@ -19,6 +19,7 @@ public partial class MainWindow
     private string? reloadBinding;
     private bool operationBusy;
     private bool writeInProgress;
+    private string? diagnosticXxmiConfig;
     private CancellationTokenSource? operationCancellation;
     private static string WorkspacePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -338,7 +339,17 @@ public partial class MainWindow
         string? runtime = store?.Root;
         string? outfit = string.IsNullOrWhiteSpace(OutfitPathBox.Text) ? null : OutfitPathBox.Text;
         string log = Path.Combine(Path.GetDirectoryName(WorkspacePath)!, "configurator.log");
-        return Task.Run(() => DiagnosticSnapshotCollector.Capture(efmi, runtime, outfit, log, token), token);
+        string? config = diagnosticXxmiConfig;
+        return Task.Run(() => DiagnosticSnapshotCollector.Capture(efmi, runtime, outfit, log, token, config), token);
+    }
+
+    private void ChooseXxmiConfig_Click(object sender, RoutedEventArgs e)
+    {
+        OpenFileDialog dialog = new() { Title = "选择本次启动使用的 XXMI 配置", Filter =
+            "XXMI 启动器配置|XXMI Launcher Config.json" };
+        if (dialog.ShowDialog(this) != true) return;
+        diagnosticXxmiConfig = dialog.FileName;
+        RefreshDiagnostics_Click(sender, e);
     }
 
     private void UpdateDiagnosticOverview(DiagnosticSnapshot diagnostics)
@@ -364,6 +375,7 @@ public partial class MainWindow
         DiagnosticOverviewText.Text =
             $"目录：{layout}\n文件：{(files is null ? diagnostics.Files.Error ?? "未检查" :
                 $"{files.Count} 项，缺失 {missing} / 与安装记录不符 {changed} / 无法读取 {unreadable}")}\n" +
+            $"XXMI：{diagnostics.Xxmi.Value?.Summary ?? diagnostics.Xxmi.Error}\n" +
             $"InputGuard：{guard}\n换装：{outfit} · QAQM：{qaqm}";
     }
 

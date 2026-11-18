@@ -3,7 +3,7 @@ param(
     [string]$DotnetPath,
     [string]$RuntimeLicenseDirectory,
     [string]$RuntimeZipPath,
-    [ValidatePattern('^v\d+\.\d+\.\d+a?$')][string]$Version = 'v0.2.7'
+    [ValidatePattern('^v\d+\.\d+\.\d+[ab]?$')][string]$Version = 'v0.2.7'
 )
 
 Set-StrictMode -Version Latest
@@ -60,7 +60,7 @@ if ($RuntimeZipPath) {
     --self-contained true --nologo -o $publish `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
     -p:EnableCompressionInSingleFile=true -p:DebugType=None -p:DebugSymbols=false `
-    "-p:Version=$($Version.TrimStart('v').TrimEnd('a'))" `
+    "-p:Version=$($Version.TrimStart('v') -replace '[ab]$','')" `
     "-p:InformationalVersion=$($Version.TrimStart('v'))" `
     -p:IncludeSourceRevisionInInformationalVersion=false @resourceArguments
 if ($LASTEXITCODE -ne 0) {

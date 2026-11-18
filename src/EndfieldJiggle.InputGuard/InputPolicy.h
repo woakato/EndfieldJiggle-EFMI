@@ -5,11 +5,11 @@
 namespace ej::input {
 
 struct Sample {
-    bool enabled, foreground, alt, ctrl, shift, escape, buttons;
+    bool enabled, foreground, alt, ctrl, shift, escape, buttons, leftButton;
 };
 
 struct Decision {
-    bool motion, buttons, draining = false;
+    bool motion, buttons, draining = false, uiCursor = false;
 };
 
 class Policy {
@@ -26,7 +26,8 @@ public:
             active = true;
         }
         if (!input.buttons || !input.foreground || !input.enabled) drainButtons = false;
-        return {active || drainButtons, active || drainButtons, drainButtons};
+        return {active || drainButtons, active || drainButtons, drainButtons,
+            active && input.leftButton && !drainButtons};
     }
 
 private:

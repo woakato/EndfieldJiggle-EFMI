@@ -12,6 +12,8 @@ SRWLOCK stateLock = SRWLOCK_INIT;
 Policy policy;
 bool active = false;
 POINT anchor{};
+POINT clickPosition{};
+bool clickLatched = false;
 RECT restoreClip{};
 bool clipped = false;
 std::unordered_map<HANDLE, AbsolutePosition> absolutePositions;
@@ -63,14 +65,15 @@ Sample ReadSample() {
 #else
     DWORD foregroundPid = 0;
     GetWindowThreadProcessId(GetForegroundWindow(), &foregroundPid);
+    const bool leftButton = Held(VK_LBUTTON);
     return {IsLive(shared, GetTickCount64()), foregroundPid == GetCurrentProcessId(),
         Held(VK_MENU), Held(VK_CONTROL), Held(VK_SHIFT), Held(VK_ESCAPE),
-        Held(VK_LBUTTON) || Held(VK_RBUTTON) || Held(VK_MBUTTON) ||
-        Held(VK_XBUTTON1) || Held(VK_XBUTTON2)};
+        leftButton || Held(VK_RBUTTON) || Held(VK_MBUTTON) ||
+        Held(VK_XBUTTON1) || Held(VK_XBUTTON2), leftButton};
 #endif
 }
 
-Decision Evaluate() {
+Decision Evaluate(POINT* cameraPoint = nullptr, bool visibleUi = false) {
     const DWORD error = GetLastError();
     Exclusive lock;
     const auto sample = ReadSample();
@@ -83,6 +86,13 @@ Decision Evaluate() {
         realClipCursor(&restoreClip);
     }
     active = decision.motion;
+    if (decision.uiCursor && !clickLatched) {
+        clickPosition = anchor;
+        PhysicalCursor(&clickPosition);
+    }
+    clickLatched = decision.uiCursor;
+    if (cameraPoint && decision.motion)
+        *cameraPoint = visibleUi && clickLatched ? clickPosition : anchor;
     SetLastError(error);
     return decision;
 }
@@ -96,13 +106,9 @@ BOOL WINAPI GuardGetCursorPos(LPPOINT point) {
         caller.AllocationBase == GetModuleHandleW(L"GameAssembly.dll"));
     // EFMI and User32 must keep reading the physical cursor for picking.
     if (!point || !gameCaller) return PhysicalCursor(point);
-    const auto decision = Evaluate();
-    // UI hit testing needs the physical position; camera deltas remain filtered on both input paths.
-    if (!decision.motion || (uiCaller && !decision.draining && UiCursorVisible()))
-        return PhysicalCursor(point);
-    Exclusive lock;
-    *point = anchor;
-    return TRUE;
+    // Keep the click target stable even when a background drag polls Unity coordinates.
+    const auto decision = Evaluate(point, uiCaller && UiCursorVisible());
+    return decision.motion ? TRUE : PhysicalCursor(point);
 }
 
 BOOL WINAPI GuardSetCursorPos(int x, int y) {

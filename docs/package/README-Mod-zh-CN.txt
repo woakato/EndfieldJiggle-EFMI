@@ -1,4 +1,4 @@
-EndfieldJiggle EFMI v0.2.7a（预发布）
+EndfieldJiggle EFMI v0.2.7b（预发布）
 
 安装
 1. 退出游戏与 XXMI，将旧触摸目录备份到 Mods 之外。
@@ -18,7 +18,8 @@ InputGuard/EndfieldJiggleInputGuard.exe，每次会话运行一次并保持运�
 配置与修复
 拖放包含 Configurator/EndfieldJiggleConfigurator.exe，可调整参数及适配换装；
 保存后可关闭。纯 Mod 包不含配置器。
-诊断页可刷新现场状态，并导出运行文件、InputGuard、日志与换装检查报告。
+诊断页可核对 XXMI 配置指向的 EFMI 目录、输入设置、运行文件及换装。
+复现问题后保持游戏运行，导出诊断报告。发现多份启动器配置时请选择本次使用的那份。
 QAQM 仅在换装引用它时专项检查，不是其他换装的必要条件。
 不能拖动时，退出游戏及 XXMI，打开配置器“安装与恢复 → 修复目录”，
 检查预览后执行。纯 Mod 用户可将旧触摸目录备份到 Mods 外后重新完整安装。
