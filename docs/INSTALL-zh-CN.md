@@ -21,9 +21,8 @@ v0.2.7 修订 2 增加“安装与恢复 → 修复目录”，可备份残留�
 ## 选择安装包
 
 - 已有 XXMI / EFMI：使用 `drop-in-win64.zip`，按下面步骤放入已有 `Mods`。
-- 未安装 XXMI Launcher：使用 `standalone-win64.zip`，内置 EFMI 和运行库。
-  整包解压后打开 `EndfieldJiggleLauncher.exe`，选择 `Endfield.exe` 并开启等待，
-  再通过官方游戏启动器以 DirectX 11 启动。
+- 未安装 XXMI Launcher：v0.2.7b 本地修订 `standalone-win64.zip` 内置官方 Launcher、EFMI 和运行库。
+  整包解压后双击 `Start.cmd`，在 XXMI Launcher 中选择《明日方舟：终末地》(EFMI)。
   详见 [独立版安装说明](STANDALONE.md)；不要把独立包覆盖到已有 EFMI 目录。
 - 已有 EFMI 且不需要配置器：使用纯 Mod 的 `win64.zip`，也附带可选输入模块。
 
@@ -37,7 +36,7 @@ v0.2.7 修订 2 增加“安装与恢复 → 修复目录”，可备份残留�
    不要混合版本或覆盖 EFMI 根目录。
 4. 从 XXMI 启动游戏，触摸默认开启；确认原版角色或换装显示正常后进行短距离拖动。
 5. 需要 Alt 镜头隔离时，运行 Mod 内 `InputGuard/EndfieldJiggleInputGuard.exe`，
-   每次游戏会话运行一次并保持运行。它会沿安装位置向上查找 EFMI；独立版自动启动它。
+   每次游戏会话运行一次并保持运行。它会沿安装位置向上查找 EFMI。
 
 解压后的结构可以是：
 

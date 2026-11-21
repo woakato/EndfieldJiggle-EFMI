@@ -53,24 +53,25 @@ Release disclaimer before use or redistribution.
 
 ## Standalone Release
 
-The standalone package adds this project's launcher and bundles these pinned
-upstream releases, without distributing XXMI Launcher's application or branding:
+The 2026-11-22 v0.2.7b standalone bundles the unmodified official XXMI Launcher
+Portable v2.5.0 (GPLv3). Corresponding source:
+https://github.com/SpectrumQT/XXMI-Launcher/archive/4f5ef31cc237394568119f9feac2d99f44665466.zip
+The following upstream components are also included:
 
-- EFMI-Package v1.4.8, commit `3d40c54ba86fdfd0e26d8ccbbd3848632f063b06`.
+- EFMI-Package v1.5.1, commit `45e0ca07af9db81b0907c537c413d281db4f235b`.
   License: GNU GPL v3. Full corresponding source:
-  https://github.com/SpectrumQT/EFMI-Package/archive/3d40c54ba86fdfd0e26d8ccbbd3848632f063b06.zip
-- XXMI-Libs-Package v1.2.2, commit `a7847eae82aaac32175c9a7d199673d5c9323bcd`.
+  https://github.com/SpectrumQT/EFMI-Package/archive/45e0ca07af9db81b0907c537c413d281db4f235b.zip
+- XXMI-Libs-Package v1.3.3, commit `8bd31f74727f033b3d9049509e19da3563c8b98c`.
   Includes `3dmloader.dll`, `d3d11.dll`, and `d3dcompiler_47.dll` from the official
   release ZIP, with no binary patches. GNU GPL v3 applies to the covered
   3Dmigoto/InjectorLib components, with additional component notices and Microsoft
   DirectX runtime terms. Full corresponding upstream source:
-  https://github.com/SpectrumQT/XXMI-Libs-Package/archive/a7847eae82aaac32175c9a7d199673d5c9323bcd.zip
+  https://github.com/SpectrumQT/XXMI-Libs-Package/archive/8bd31f74727f033b3d9049509e19da3563c8b98c.zip
 - DirectXTK and PCRE2 notices are retained in the standalone package's `Licenses`
   directory, together with the upstream GPL license and `COPYING.txt`.
-- Both desktop programs bundle the .NET 8 runtime and preserve its license and
+- The configurator bundles the .NET 8 runtime and preserves its license and
   third-party notices. The project source snapshot is included under `Sources`.
 
-Only the standalone package's `d3dx.ini` is configured for its own launcher and
-default non-hunting mode. EFMI's Core resources and the three official DLLs remain
-unchanged. This package is independently assembled by EndfieldJiggle and is not an
-official EFMI or XXMI Launcher distribution.
+The standalone preserves EFMI's official `d3dx.ini`, Core resources, the XXMI
+signature manifest and the three official DLLs. This package is independently
+assembled by EndfieldJiggle and is not an official EFMI or XXMI Launcher distribution.

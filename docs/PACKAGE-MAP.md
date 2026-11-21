@@ -2,6 +2,17 @@
 
 ## v0.2.7b Alt Input and XXMI Diagnostics Prerelease
 
+The 2026-11-22 local standalone uses the unmodified SpectrumQT XXMI Launcher
+Portable v2.5.0 (`Resources/Bin/XXMI Launcher.exe` via `Start.cmd`) instead
+of EndfieldJiggleLauncher. EFMI's d3dx.ini is unmodified. This replaces the
+manual-launch standalone in the local delivery only; the flat ZIPs are unchanged.
+The 2026-11-21 dependency refresh uses the published v0.2.7b pure Mod as its
+rendering/InputGuard baseline. Only the standalone bundles EFMI v1.5.1 and
+XXMI-Libs v1.3.3, from SpectrumQT release ZIPs, not a launcher installation.
+The original v0.2.7b standalone bundled EFMI v1.4.8 / XXMI-Libs v1.2.2.
+See `reports/v027b-refresh/assets` for the refreshed set and checksums;
+these are local artifacts, not a GitHub replacement or in-game acceptance.
+
 Based on v0.2.7a. The input guard holds Unity's cursor at the press location during
 an Alt-left drag. The configurator compares the selected EFMI path against XXMI
 profiles and exports launcher and loader settings. See [release notes](RELEASE-v0.2.7b-zh-CN.md).

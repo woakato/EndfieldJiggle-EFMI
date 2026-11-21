@@ -293,7 +293,7 @@ if (args.Length > 1)
 {
     StandalonePackage real = new(args[1]);
     StandaloneManifest actual = real.Validate();
-    Check(actual.EfmiVersion == "1.4.8" && actual.LibrariesVersion == "1.2.2",
+    Check(actual.EfmiVersion == "1.5.1" && actual.LibrariesVersion == "1.3.3",
         "Built package contains the pinned official runtime versions");
     RuntimeLocation? located = RuntimeLocationLocator.Discover(
         Path.GetDirectoryName(real.ConfiguratorPath)!, real.EfmiDirectory);

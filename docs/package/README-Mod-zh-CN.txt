@@ -4,7 +4,8 @@ EndfieldJiggle EFMI v0.2.7b（预发布）
 1. 退出游戏与 XXMI，将旧触摸目录备份到 Mods 之外。
 2. 将本包完整解压到 EFMI/Mods 下一个独立目录，INI 与 shaders 保持相邻。
    支持中文、分类及多层目录；启用目录下只保留一份触摸 Mod。
-3. 通过现有 EFMI / XXMI 启动游戏。
+3. 通过现有 EFMI / XXMI 启动游戏。纯 Mod 和拖放包不附带 EFMI 或渲染库；
+   需要更新它们时请通过官方 XXMI Launcher 更新。
 
 操作
 按住 Alt + 鼠标左键拖动，松开左键释放。触摸默认开启。

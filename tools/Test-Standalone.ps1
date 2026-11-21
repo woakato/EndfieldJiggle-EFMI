@@ -5,7 +5,7 @@ param(
     [Parameter(Mandatory)][string]$DotnetPath,
     [string]$LoaderHostPath,
     [string]$OriginalShaderDirectory,
-    [AllowEmptyString()][string]$DropInRuntimePrefix = 'EndfieldJiggleEFMI/'
+    [AllowEmptyString()][string]$DropInRuntimePrefix = ''
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'

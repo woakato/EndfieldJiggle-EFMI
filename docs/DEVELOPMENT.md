@@ -68,7 +68,7 @@ v0.2.4 使用 `Build-UnifiedInputCandidate.ps1` 从已验证的 v0.2.3 完整运
 生成输入修订；原始求解器、拾取程序及缓存不变。将该报告传给
 `Build-FlatRelease.ps1 -Version v0.2.4`，生成纯 Mod、drop-in 和内置安装文件的配置器。
 `Build-Standalone.ps1` 需显式指定 `-Version v0.2.4`、当前 drop-in 的
-`-ExpectedDropInSha256` 和空 `-DropInRuntimePrefix ''`，继续使用下述固定官方依赖。
+`-ExpectedDropInSha256` 和空 `-DropInRuntimePrefix ''`。复现旧版时请使用当时标签中的脚本和依赖。
 可传入 `-SourceCommit <40位提交>`，让独立版附带与发布标签一致的 Git 源码快照，
 排除工作区中的未提交文件。新版本的安装流程和测试分别记录在
 [使用说明](USAGE.md)与[输入验证记录](UNIFIED-ALT-INPUT.md)。
@@ -79,26 +79,35 @@ v0.2.4 使用 `Build-UnifiedInputCandidate.ps1` 从已验证的 v0.2.3 完整运
 当前 Windows Mod ZIP 是从已验证本地安装构建出来的独立发行资产。
 不要为了通过检查而删除证据约束或伪造构建报告。
 
-独立便携包从已经发布、SHA-256 固定的 v0.2.2 拖放 ZIP 和两个官方依赖 ZIP
-组装，不重新计算逐角色着色器。下载 `EFMI-PACKAGE-v1.4.8.zip`、
-`XXMI-PACKAGE-v1.2.2.zip`，在 Windows / PowerShell 7 / .NET 8 SDK 环境构建：
+v0.2.7b 依赖刷新从原发布的纯 Mod ZIP 重建，不重新编译着色器或输入模块。
+在仓库根目录使用 PowerShell 7、.NET 8 SDK 和 GitHub CLI；`$out` 指向 `reports`
+下未使用的目录。官方依赖必须来自 SpectrumQT 对应的 Release，不从本机安装提取：
 
 ```powershell
-.\tools\Build-Standalone.ps1 `
-  -DropInZipPath 'D:\packages\EndfieldJiggleEFMI-v0.2.2-drop-in-win64.zip' `
-  -EfmiZipPath 'D:\packages\EFMI-PACKAGE-v1.4.8.zip' `
-  -LibrariesZipPath 'D:\packages\XXMI-PACKAGE-v1.2.2.zip' `
-  -DotnetPath 'D:\dotnet8\dotnet.exe'
+$sdk = (Get-Command dotnet.exe).Source
+$out = Join-Path $PWD 'reports\v027b-rebuild'
+gh release download v0.2.7b -R woakato/EndfieldJiggle-EFMI -p '*b-win64.zip' -D "$out\inputs"
+gh release download v1.5.1 -R SpectrumQT/EFMI-Package -p '*.zip' -D "$out\inputs"
+gh release download v1.3.3 -R SpectrumQT/XXMI-Libs-Package -p '*.zip' -D "$out\inputs"
+gh release download v1.3.3 -R SpectrumQT/XXMI-Libs-Package -p 'Manifest.json' -D "$out\inputs"
+gh release download v2.5.0 -R SpectrumQT/XXMI-Launcher -p '*Portable*.zip' -D "$out\inputs"
+$mod = "$out\inputs\EndfieldJiggleEFMI-v0.2.7b-win64.zip"
+.\tools\Build-FlatRelease.ps1 -Version v0.2.7b -PublishedModZipPath $mod `
+  -PreviousModZipPath $mod -DotnetPath $sdk -OutputDirectory "$out\flat"
+$flat = Get-Content "$out\flat\build-report.json" -Raw | ConvertFrom-Json
+.\tools\Build-Standalone.ps1 -DropInZip $flat.dropInZip -ExpectedDropInSha256 $flat.dropInSha256 `
+  -OutputDirectory "$out\standalone" -LauncherZip "$out\inputs\XXMI-Launcher-Portable-v2.5.0.zip" `
+  -EfmiZip "$out\inputs\EFMI-PACKAGE-v1.5.1.zip" -LibrariesZip "$out\inputs\XXMI-PACKAGE-v1.3.3.zip" `
+  -LibrariesManifest "$out\inputs\Manifest.json"
 ```
 
 脚本拒绝未知输入字节，保留官方库和 Core、Mod 和配置器的原始内容，
-只设置本包 `d3dx.ini` 的启动入口与默认非 Hunting 状态。
-构建用 GitHub CLI 获取固定 commit 的许可文本；离线构建可通过
-`-NoticeCacheDirectory` 提供同名已获取许可证。
-完整包附带 `Sources/EndfieldJiggleEFMI-v0.2.2-source.zip`，记录本次构建源码；
+保留官方启动器文件、原版 `d3dx.ini`、签名清单，并逐文件校验最终 ZIP。
+构建用 GitHub CLI 获取固定 commit 的许可文本。不执行官方启动器或修改现有安装。
+完整包附带 `Sources/EndfieldJiggleEFMI-v0.2.7b-source.zip`，记录本次构建源码；
 官方依赖对应源码的固定地址见 `THIRD-PARTY-NOTICES.md`。
 
-仅编译独立启动器不需要游戏或依赖 ZIP：
+仅编译历史自制启动器（`Build-ManualStandalone.ps1`）不需要游戏或依赖 ZIP：
 
 ```powershell
 dotnet publish src/EndfieldJiggle.Launcher/EndfieldJiggle.Launcher.csproj `
@@ -106,7 +115,7 @@ dotnet publish src/EndfieldJiggle.Launcher/EndfieldJiggle.Launcher.csproj `
 dotnet run --project tests/EndfieldJiggle.Launcher.Tests -c Release
 ```
 
-`Test-Standalone.ps1` 对比已发布 Mod 字节并检查配置器定位。可选的离线
+历史自制启动器的 `Test-Standalone.ps1` 对比已发布 Mod 字节并检查配置器定位。可选的离线
 D3D11 测试使用十二个本地接口着色器和原生宿主，全部写入 `reports`；
 它不等于游戏进程启动验证。
 
