@@ -1,4 +1,4 @@
-EndfieldJiggle EFMI v0.2.7b（预发布）
+EndfieldJiggle EFMI v0.2.7c（预发布）
 
 安装
 1. 退出游戏与 XXMI，将旧触摸目录备份到 Mods 之外。

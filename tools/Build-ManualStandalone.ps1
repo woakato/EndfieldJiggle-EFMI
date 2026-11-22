@@ -9,7 +9,7 @@ param(
     [string]$RuntimeLicenseDirectory,
     [string]$NoticeCacheDirectory,
     [ValidatePattern('^[0-9a-fA-F]{40}$')][string]$SourceCommit,
-    [ValidatePattern('^v\d+\.\d+\.\d+[ab]?$')][string]$Version = 'v0.2.7b',
+    [ValidatePattern('^v\d+\.\d+\.\d+[a-z]?$')][string]$Version = 'v0.2.7b',
     [Parameter(Mandatory)][ValidatePattern('^[0-9A-Fa-f]{64}$')][string]$ExpectedDropInSha256,
     [AllowEmptyString()][string]$DropInRuntimePrefix = ''
 )

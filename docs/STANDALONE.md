@@ -1,13 +1,13 @@
 # 独立便携版
 
-**v0.2.7b 当前本地修订（2026-11-22）**使用官方 XXMI Launcher 2.5.0、EFMI 1.5.1
+**v0.2.7c（2026-11-22）**使用官方 XXMI Launcher 2.5.0、EFMI 1.5.1
 与 XXMI 渲染库 1.3.3。完整解压到新的短目录后，双击 `Start.cmd`，或直接运行
 `Resources\Bin\XXMI Launcher.exe`。在游戏选择页选择《明日方舟：终末地》(EFMI)，
 按照启动器提示确认游戏路径。触摸 Mod 已放在 `EFMI\Mods\EndfieldJiggleEFMI`。
 要使用 Alt 镜头隔离，游戏启动后运行 Mod 中 `InputGuard\EndfieldJiggleInputGuard.exe`。
 详见[当前包内说明](package/README-Standalone-zh-CN.txt)。不需要打开旧的等待窗口。
 
-## 以下仅适用于旧的自制启动器包
+## 旧版自制启动器包（历史）
 
 v0.2.7 修订 2：配置器“安装与恢复 → 修复目录”可检查不完整运行时、
 备份冲突旧 INI 并补齐选定目录。请退出游戏和 XXMI 后操作，
@@ -19,14 +19,8 @@ v0.2.7 修订 2：配置器“安装与恢复 → 修复目录”可检查不完
 已有 XXMI / EFMI 的用户继续使用 `drop-in-win64.zip`，解压到现有 EFMI 的 `Mods`
 下一个目录，让 `shaders` 与 INI 直接位于其中。只需默认参数的用户可选纯 Mod 包。
 
-没有 XXMI Launcher 的用户可使用 `EndfieldJiggleEFMI-v0.2.7b-standalone-win64.zip`。
-2026-11-21 的本地重打包仍为预发布，尚未实机验证。
-它包含官方 EFMI 1.5.1、官方 XXMI 渲染库 1.3.3、v0.2.7b 的触摸 Mod、
-现有配置器和本项目的便携启动器，无需另行安装 XXMI Launcher 或 .NET。
-“独立”指不依赖 XXMI Launcher 安装，渲染仍使用 EFMI / XXMI 的官方库。
-EFMI 加载后，启动器会自动启用 `InputGuard` 后台程序。长按 Alt 时仅过滤鼠标输入，
-不冻结游戏时间或相机矩阵，松开恢复，Esc 临时解除。关闭启动器后后台程序继续工作，
-随游戏退出结束；异常退出后 1.5 秒内停止过滤。详见 [输入模块说明](ALT-INPUT-GUARD.md)。
+更早的 v0.2.7b 自制启动器包使用 `EndfieldJiggleLauncher.exe`，不适用于当前官方
+XXMI Launcher 独立包说明。当前包内说明见 [README](package/README-Standalone-zh-CN.txt)。
 
 ## 首次使用
 

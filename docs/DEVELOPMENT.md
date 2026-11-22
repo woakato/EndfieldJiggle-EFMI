@@ -79,24 +79,25 @@ v0.2.4 使用 `Build-UnifiedInputCandidate.ps1` 从已验证的 v0.2.3 完整运
 当前 Windows Mod ZIP 是从已验证本地安装构建出来的独立发行资产。
 不要为了通过检查而删除证据约束或伪造构建报告。
 
-v0.2.7b 依赖刷新从原发布的纯 Mod ZIP 重建，不重新编译着色器或输入模块。
+v0.2.7c 依赖刷新从原发布的 v0.2.7b 纯 Mod ZIP 重建，不重新编译着色器或输入模块。
 在仓库根目录使用 PowerShell 7、.NET 8 SDK 和 GitHub CLI；`$out` 指向 `reports`
 下未使用的目录。官方依赖必须来自 SpectrumQT 对应的 Release，不从本机安装提取：
 
 ```powershell
 $sdk = (Get-Command dotnet.exe).Source
-$out = Join-Path $PWD 'reports\v027b-rebuild'
+$out = Join-Path $PWD 'reports\v027c-rebuild'
 gh release download v0.2.7b -R woakato/EndfieldJiggle-EFMI -p '*b-win64.zip' -D "$out\inputs"
 gh release download v1.5.1 -R SpectrumQT/EFMI-Package -p '*.zip' -D "$out\inputs"
 gh release download v1.3.3 -R SpectrumQT/XXMI-Libs-Package -p '*.zip' -D "$out\inputs"
 gh release download v1.3.3 -R SpectrumQT/XXMI-Libs-Package -p 'Manifest.json' -D "$out\inputs"
 gh release download v2.5.0 -R SpectrumQT/XXMI-Launcher -p '*Portable*.zip' -D "$out\inputs"
 $mod = "$out\inputs\EndfieldJiggleEFMI-v0.2.7b-win64.zip"
-.\tools\Build-FlatRelease.ps1 -Version v0.2.7b -PublishedModZipPath $mod `
+.\tools\Build-FlatRelease.ps1 -Version v0.2.7c -PublishedModZipPath $mod `
   -PreviousModZipPath $mod -DotnetPath $sdk -OutputDirectory "$out\flat"
 $flat = Get-Content "$out\flat\build-report.json" -Raw | ConvertFrom-Json
 .\tools\Build-Standalone.ps1 -DropInZip $flat.dropInZip -ExpectedDropInSha256 $flat.dropInSha256 `
-  -OutputDirectory "$out\standalone" -LauncherZip "$out\inputs\XXMI-Launcher-Portable-v2.5.0.zip" `
+  -OutputDirectory "$out\standalone" -Version v0.2.7c `
+  -LauncherZip "$out\inputs\XXMI-Launcher-Portable-v2.5.0.zip" `
   -EfmiZip "$out\inputs\EFMI-PACKAGE-v1.5.1.zip" -LibrariesZip "$out\inputs\XXMI-PACKAGE-v1.3.3.zip" `
   -LibrariesManifest "$out\inputs\Manifest.json"
 ```
@@ -104,7 +105,7 @@ $flat = Get-Content "$out\flat\build-report.json" -Raw | ConvertFrom-Json
 脚本拒绝未知输入字节，保留官方库和 Core、Mod 和配置器的原始内容，
 保留官方启动器文件、原版 `d3dx.ini`、签名清单，并逐文件校验最终 ZIP。
 构建用 GitHub CLI 获取固定 commit 的许可文本。不执行官方启动器或修改现有安装。
-完整包附带 `Sources/EndfieldJiggleEFMI-v0.2.7b-source.zip`，记录本次构建源码；
+完整包附带 `Sources/EndfieldJiggleEFMI-v0.2.7c-source.zip`，记录本次构建源码；
 官方依赖对应源码的固定地址见 `THIRD-PARTY-NOTICES.md`。
 
 仅编译历史自制启动器（`Build-ManualStandalone.ps1`）不需要游戏或依赖 ZIP：

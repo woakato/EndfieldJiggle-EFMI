@@ -6,7 +6,7 @@ param(
     [Parameter(Mandatory)][string]$OutputDirectory,
     [string]$PreviousModZipPath,
     [Parameter(ParameterSetName='Report')][string]$InputGuardReportPath,
-    [ValidatePattern('^v\d+\.\d+\.\d+[ab]?$')][string]$Version = 'v0.2.7'
+    [ValidatePattern('^v\d+\.\d+\.\d+[a-z]?$')][string]$Version = 'v0.2.7'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -67,7 +67,8 @@ return $runtimeFiles
 if ($PublishedModZipPath) {
     $baseline = (Resolve-Path -LiteralPath $PublishedModZipPath).Path
     $publishedHash = 'EAC18772A002F8107144EBBF71F2FFC017247B4855264E08F39875F842FA0C63'
-    if ($Version -cne 'v0.2.7b' -or (Get-FileHash -LiteralPath $baseline).Hash -cne $publishedHash) {
+    if ($Version -cnotin @('v0.2.7b','v0.2.7c') -or
+        (Get-FileHash -LiteralPath $baseline).Hash -cne $publishedHash) {
         throw 'Package refresh requires the original published v0.2.7b pure Mod.'
     }
     $runtimeDirectory = Join-Path $build 'published-mod'

@@ -6,7 +6,8 @@ param(
     [Parameter(Mandatory)][string]$LibrariesManifest,
     [Parameter(Mandatory)][string]$DropInZip,
     [Parameter(Mandatory)][ValidatePattern('^[0-9a-fA-F]{64}$')][string]$ExpectedDropInSha256,
-    [Parameter(Mandatory)][string]$OutputDirectory
+    [Parameter(Mandatory)][string]$OutputDirectory,
+    [ValidatePattern('^v\d+\.\d+\.\d+[a-z]?$')][string]$Version = 'v0.2.7c'
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -99,7 +100,7 @@ foreach ($notice in @(
     [IO.File]::WriteAllBytes($target,[Convert]::FromBase64String(($response | ConvertFrom-Json).content))
     Copy-Checked $target "Licenses/$($notice[3])"
 }
-$sourceArchive = Join-Path $work 'EndfieldJiggleEFMI-v0.2.7b-source.zip'
+$sourceArchive = Join-Path $work "EndfieldJiggleEFMI-$Version-source.zip"
 $paths = @(& git -C $root ls-files)
 if ($LASTEXITCODE -ne 0 -or !$paths.Count) { throw 'Cannot enumerate public source.' }
 $source = [IO.Compression.ZipFile]::Open($sourceArchive,[IO.Compression.ZipArchiveMode]::Create)
@@ -111,7 +112,7 @@ try {
         [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($source,$path,$relative) | Out-Null
     }
 } finally { $source.Dispose() }
-Copy-Checked $sourceArchive 'Sources/EndfieldJiggleEFMI-v0.2.7b-source.zip'
+Copy-Checked $sourceArchive "Sources/EndfieldJiggleEFMI-$Version-source.zip"
 $startCmd = Join-Path $work 'Start.cmd'
 [IO.File]::WriteAllText($startCmd,"@echo off`r`ncd /d `"%~dp0Resources\Bin`" || exit /b 1`r`nstart `"`" `"XXMI Launcher.exe`"`r`n",[Text.Encoding]::ASCII)
 Copy-Checked $startCmd 'Start.cmd'
@@ -119,7 +120,7 @@ Copy-Checked "$root/docs/package/README-Standalone-zh-CN.txt" 'README.txt'
 Copy-Checked "$root/THIRD-PARTY-NOTICES.md" 'Licenses/Standalone-Notices.txt'
 $manifest = Get-Content -Raw -LiteralPath (Join-Path $product 'Resources/Packages/XXMI/Manifest.json') | ConvertFrom-Json
 if ($manifest.version -cne '1.3.3' -or $manifest.signatures.PSObject.Properties.Name.Count -ne 3) { throw 'XXMI signature manifest mismatch' }
-$basename = 'EndfieldJiggleEFMI-v0.2.7b-standalone-win64.zip'
+$basename = "EndfieldJiggleEFMI-$Version-standalone-win64.zip"
 $zip = Join-Path $work $basename
 [IO.Compression.ZipFile]::CreateFromDirectory($product,$zip,[IO.Compression.CompressionLevel]::Optimal,$true)
 $archive = [IO.Compression.ZipFile]::OpenRead($zip)

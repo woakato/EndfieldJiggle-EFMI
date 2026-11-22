@@ -16,6 +16,8 @@
 | 文档 | 内容 |
 | --- | --- |
 | [PACKAGE-MAP.md](PACKAGE-MAP.md) | 当前三个正式包、校验值、源码身份和证据位置 |
+| [RELEASE-v0.2.7c-zh-CN.md](RELEASE-v0.2.7c-zh-CN.md) | 官方 XXMI Launcher 独立包预发布说明 |
+| [RELEASE-v0.2.7b-zh-CN.md](RELEASE-v0.2.7b-zh-CN.md) | Alt 拖动与 XXMI 诊断预发布说明 |
 | [RELEASE-v0.2.6-zh-CN.md](RELEASE-v0.2.6-zh-CN.md) | 任意名称、多层目录识别和原位升级恢复 |
 | [RELEASE-v0.2.5-zh-CN.md](RELEASE-v0.2.5-zh-CN.md) | 通用换装适配的本地测试版说明与验证范围 |
 | [RELEASE-v0.2.3-zh-CN.md](RELEASE-v0.2.3-zh-CN.md) | 当前原皮与换装修复的发布说明 |

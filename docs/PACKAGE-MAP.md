@@ -1,5 +1,17 @@
 # Package Identity and Maintenance Status
 
+## v0.2.7c Official XXMI Launcher Prerelease
+
+The 2026-11-22 package refresh uses the user-tested v0.2.7b runtime and
+configurator. The standalone now starts the unmodified SpectrumQT XXMI Launcher
+Portable v2.5.0 and bundles EFMI v1.5.1 plus XXMI-Libs v1.3.3. Its `Start.cmd`
+opens the bundled launcher; official EFMI files and the signed library manifest
+are unchanged. Pure Mod, drop-in and embedded-installer runtime bytes are
+unchanged from v0.2.7b; package instructions and archive names identify v0.2.7c.
+The existing v0.2.7b Release assets are preserved. This packaging update does
+not claim new in-game visual acceptance. Asset digests are in
+`SHA256SUMS-v0.2.7c.txt`.
+
 ## v0.2.7b Alt Input and XXMI Diagnostics Prerelease
 
 The 2026-11-22 local standalone uses the unmodified SpectrumQT XXMI Launcher

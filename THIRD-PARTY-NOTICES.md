@@ -53,7 +53,7 @@ Release disclaimer before use or redistribution.
 
 ## Standalone Release
 
-The 2026-11-22 v0.2.7b standalone bundles the unmodified official XXMI Launcher
+The 2026-11-22 v0.2.7c standalone bundles the unmodified official XXMI Launcher
 Portable v2.5.0 (GPLv3). Corresponding source:
 https://github.com/SpectrumQT/XXMI-Launcher/archive/4f5ef31cc237394568119f9feac2d99f44665466.zip
 The following upstream components are also included:

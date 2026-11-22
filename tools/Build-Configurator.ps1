@@ -3,7 +3,7 @@ param(
     [string]$DotnetPath,
     [string]$RuntimeLicenseDirectory,
     [string]$RuntimeZipPath,
-    [ValidatePattern('^v\d+\.\d+\.\d+[ab]?$')][string]$Version = 'v0.2.7'
+    [ValidatePattern('^v\d+\.\d+\.\d+[a-z]?$')][string]$Version = 'v0.2.7'
 )
 
 Set-StrictMode -Version Latest
