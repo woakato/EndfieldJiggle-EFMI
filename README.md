@@ -24,8 +24,8 @@
 > 源码归档不是游戏安装包。
 
 v0.2.7 预发布版增加长按 Alt 的鼠标输入隔离，避免拖动触摸时同时操作镜头。
-松开 Alt 恢复，Esc 临时解除；不修改剧情时间或相机矩阵。独立版自动启动输入模块，
-已有 XXMI 的用户需在游戏启动后运行一次 `InputGuard/EndfieldJiggleInputGuard.exe`。
+松开 Alt 恢复，Esc 临时解除；不修改剧情时间或相机矩阵。使用 XXMI Launcher 时，
+需要隔离镜头的用户在游戏启动后运行一次 Mod 内的 `InputGuard/EndfieldJiggleInputGuard.exe`。
 三个包与配置器内置安装文件同步。剧情内拾取与运镜尚待实机验收，详见
 [v0.2.7 预发布说明](docs/RELEASE-v0.2.7-zh-CN.md)和
 [输入模块说明](docs/ALT-INPUT-GUARD.md)。
@@ -76,14 +76,13 @@ v0.2.4 于 2026-10-17 同步角色界面与大世界的触摸输入：默认开�
 
 | 安装情况 | 下载附件 | 使用方式 |
 | --- | --- | --- |
-| 已有 XXMI / EFMI | `EndfieldJiggleEFMI-v0.2.4-drop-in-win64.zip` | 解压为 `Mods` 下一个目录，含可选配置器 |
-| 没有 XXMI Launcher | `EndfieldJiggleEFMI-v0.2.4-standalone-win64.zip` | 整包解压，打开 `EndfieldJiggleLauncher.exe` |
-| 已有 EFMI，只需 Mod | `EndfieldJiggleEFMI-v0.2.4-win64.zip` | 仅触摸 Mod，不含程序 |
+| 已有 XXMI / EFMI | `*-drop-in-win64.zip` | 解压为 `Mods` 下一个目录，含可选配置器 |
+| 没有 XXMI Launcher | `*-standalone-win64.zip` | 整包解压；2026-11-22 本地修订双击 `Start.cmd` 打开官方 XXMI Launcher |
+| 已有 EFMI，只需 Mod | `*-win64.zip`（无上述后缀） | 触摸 Mod，不含配置器或启动器 |
 
-独立包包含官方 EFMI 1.4.8、XXMI 渲染库 1.2.2、触摸 Mod 与配置器，不需另外安装
-XXMI Launcher 或 .NET。选择游戏本体 `Endfield.exe`，点击“等待官方启动”，
-再到官方游戏启动器选择 DirectX 11 并开始游戏。后续双击 `Start.cmd` 也只开始等待，
-不会直接启动游戏。路径栏用于核对目标；权限错误会提示，不自动提权。
+v0.2.7b 本地修订独立包包含 SpectrumQT 的 XXMI Launcher 2.5.0、EFMI 1.5.1 和
+XXMI 渲染库 1.3.3，以及触摸 Mod 与配置器。打开启动器后选择《明日方舟：终末地》(EFMI)，
+按界面提示确认路径和启动。此前在 GitHub 发布的同名附件仍使用旧启动器。
 换装放入独立包自己的 `EFMI/Mods`。完整步骤见[独立版说明](docs/STANDALONE.md)。
 独立版仍使用 EFMI / XXMI 渲染库；原有 XXMI 安装与独立包分别保存 Mod 和配置。
 
@@ -150,8 +149,7 @@ QAQM 状态文件缺失与桥接缺失是独立问题，详见[换装兼容说�
 **独立版是不是完全不用 EFMI？**
 
 独立版内置 EFMI 和配套渲染库，不要求预先安装 XXMI Launcher。
-它使用同一版触摸 Mod，并增加本项目自己的便携加载入口。先点击本包的“等待官方启动”，
-再由官方游戏启动器以 DirectX 11 开始游戏。没有开启等待时不会自动加载本包。
+2026-11-22 的 v0.2.7b 独立版直接使用包内的官方 XXMI Launcher，不再使用本项目的等待启动界面。
 
 **是不是每个角色都需要单独导出资源？**
 

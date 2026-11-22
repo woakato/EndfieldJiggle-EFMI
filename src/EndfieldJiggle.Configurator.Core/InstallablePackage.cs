@@ -13,10 +13,24 @@ public sealed record InstallationResult(string RuntimeDirectory, string BackupDi
 public sealed partial class InstallablePackage
 {
     private const string ReceiptName = "EndfieldJiggle.install.json";
+    private static readonly Dictionary<string, string[]> PriorReleaseFiles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["InputGuard/EndfieldJiggleInputGuard.dll"] =
+            ["E18217164AFD793B141BF00003A24695741440A796EBF6BD30B316DA3772E79B",
+             "A08C1DF0C5BFA6734FF6874B9C4A4289D6B531E627E2EDAE969FBCFCF66D2BBC"],
+        ["README.txt"] =
+            ["CD553ED48C1BE59CA9CB2887E71B078100960A7AAA0B64A67E41310C511386AE",
+             "0B04D7E340CC8AE0343B0051DCE681CBF950A8693E7493184C7915A004B3FBE8",
+             "4EFC895EFB04C955F1640CA2D8109562AC96AC9B86264A660A1E386C693D668A"],
+        ["Licenses/THIRD-PARTY-NOTICES.txt"] =
+            ["F40F70F427FF645368A3AC4DC2527F5A6B8538E4229CA1E8995649010A5FBD74"],
+    };
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly Dictionary<string, byte[]> files;
     public bool Available => files.Count != 0;
-    public static string ApplicationVersion => typeof(InstallablePackage).Assembly.GetName().Version!.ToString(3);
+    public static string ApplicationVersion =>
+        typeof(InstallablePackage).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion ?? typeof(InstallablePackage).Assembly.GetName().Version!.ToString(3);
 
     private InstallablePackage(Dictionary<string, byte[]> files) => this.files = files;
 
@@ -68,8 +82,14 @@ public sealed partial class InstallablePackage
             {
                 string owned = Inside(runtime, name);
                 EnsureUnlinked(owned);
-                if (File.Exists(owned) && !File.ReadAllBytes(owned).AsSpan().SequenceEqual(bytes))
-                    throw new IOException("旧运行时资源与已审核版本不同，拒绝覆盖：" + name);
+                if (File.Exists(owned))
+                {
+                    byte[] installed = File.ReadAllBytes(owned);
+                    if (!installed.AsSpan().SequenceEqual(bytes) &&
+                        (!PriorReleaseFiles.TryGetValue(name, out var priorHashes) ||
+                         !priorHashes.Contains(Hash(installed), StringComparer.Ordinal)))
+                        throw new IOException("旧运行时资源与已审核版本不同，拒绝覆盖：" + name);
+                }
             }
         }
         return new(efmi, runtime, upgrade, Fingerprint(runtime), files.Count, repairMissingFiles);

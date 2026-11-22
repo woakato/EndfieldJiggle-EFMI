@@ -1,11 +1,12 @@
-[CmdletBinding()]
+[CmdletBinding(DefaultParameterSetName='Report')]
 param(
-    [Parameter(Mandatory)][string]$RuntimeReportPath,
+    [Parameter(Mandatory,ParameterSetName='Report')][string]$RuntimeReportPath,
+    [Parameter(Mandatory,ParameterSetName='Published')][string]$PublishedModZipPath,
     [Parameter(Mandatory)][string]$DotnetPath,
     [Parameter(Mandatory)][string]$OutputDirectory,
     [string]$PreviousModZipPath,
-    [string]$InputGuardReportPath,
-    [ValidatePattern('^v\d+\.\d+\.\d+$')][string]$Version = 'v0.2.7'
+    [Parameter(ParameterSetName='Report')][string]$InputGuardReportPath,
+    [ValidatePattern('^v\d+\.\d+\.\d+[ab]?$')][string]$Version = 'v0.2.7'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -13,7 +14,7 @@ $root = (Resolve-Path -LiteralPath "$PSScriptRoot\..").Path
 Import-Module (Join-Path $PSScriptRoot 'Universal.Common.psm1') -Force
 $build = Assert-UniversalPath (Join-Path $root 'reports') ([IO.Path]::GetFullPath($OutputDirectory))
 if (Test-Path -LiteralPath $build) { throw 'Preserve previous release evidence.' }
-$runtimeReport = Get-Content -Raw -LiteralPath $RuntimeReportPath | ConvertFrom-Json
+function Get-ReviewedFiles($runtimeReport) {
 $unifiedInput = $runtimeReport.PSObject.Properties['kind'] -and
     $runtimeReport.kind -ceq 'unified-alt-input-candidate'
 $outfitReceiver = $unifiedInput -or ($runtimeReport.PSObject.Properties['buildKind'] -and
@@ -61,11 +62,34 @@ $runtimeFiles = @($runtimeReport.files | Where-Object {
 })
 $expectedRuntimeCount = if ($outfitReceiver) { 15 } else { 14 }
 if ($runtimeFiles.Count -ne $expectedRuntimeCount) { throw 'Unexpected reviewed runtime file set.' }
+return $runtimeFiles
+}
+if ($PublishedModZipPath) {
+    $baseline = (Resolve-Path -LiteralPath $PublishedModZipPath).Path
+    $publishedHash = 'EAC18772A002F8107144EBBF71F2FFC017247B4855264E08F39875F842FA0C63'
+    if ($Version -cne 'v0.2.7b' -or (Get-FileHash -LiteralPath $baseline).Hash -cne $publishedHash) {
+        throw 'Package refresh requires the original published v0.2.7b pure Mod.'
+    }
+    $runtimeDirectory = Join-Path $build 'published-mod'
+    [IO.Compression.ZipFile]::ExtractToDirectory($baseline, $runtimeDirectory)
+    $runtimeFiles = @(Get-ChildItem -LiteralPath $runtimeDirectory -File -Recurse | ForEach-Object {
+        $relative = [IO.Path]::GetRelativePath($runtimeDirectory,$_.FullName).Replace('\','/')
+        if ($relative -cmatch '^(shaders/|[^/]+\.ini$|Licenses/GPL-3\.0\.txt$)') {
+            [ordered]@{ path=$relative; sha256=(Get-FileHash -LiteralPath $_.FullName).Hash }
+        }
+    })
+    if ($runtimeFiles.Count -ne 15) { throw 'Unexpected published runtime layout.' }
+} else {
+    $runtimeReport = Get-Content -Raw -LiteralPath $RuntimeReportPath | ConvertFrom-Json
+    $runtimeFiles = @(Get-ReviewedFiles $runtimeReport)
+    $runtimeDirectory = $runtimeReport.packageDirectory
+}
+$expectedRuntimeCount = $runtimeFiles.Count
 $mod = Join-Path $build 'mod'
 New-Item -ItemType Directory -Path $mod | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $mod 'Licenses') | Out-Null
 foreach ($file in $runtimeFiles) {
-    $source = Assert-UniversalPath $runtimeReport.packageDirectory (Join-Path $runtimeReport.packageDirectory $file.path)
+    $source = Assert-UniversalPath $runtimeDirectory (Join-Path $runtimeDirectory $file.path)
     if ((Get-FileHash -LiteralPath $source).Hash -cne $file.sha256) { throw "Runtime payload changed: $($file.path)" }
     $relative = if ($file.path -ceq 'JiggleForge-LICENSE') { 'Licenses\GPL-3.0.txt' } else { $file.path }
     $target = Assert-UniversalPath $mod (Join-Path $mod $relative)
@@ -82,7 +106,11 @@ foreach ($pair in @(
     @('docs\package\README-Mod-zh-CN.txt','README.txt')
 )) { Copy-Item -LiteralPath (Join-Path $root $pair[0]) -Destination (Join-Path $mod $pair[1]) }
 $guardCount = 0
-if ($InputGuardReportPath) {
+if ($PublishedModZipPath) {
+    Copy-Item -LiteralPath (Join-Path $runtimeDirectory 'InputGuard') -Destination $mod -Recurse
+    Copy-Item -LiteralPath (Join-Path $runtimeDirectory 'Licenses\MINHOOK-LICENSE.txt') -Destination (Join-Path $mod 'Licenses')
+    $guardCount = 3
+} elseif ($InputGuardReportPath) {
     $guard = Get-Content -Raw -LiteralPath $InputGuardReportPath | ConvertFrom-Json
     $expectedGuard = @('EndfieldJiggleInputGuard.exe','EndfieldJiggleInputGuard.dll',
         'MINHOOK-LICENSE.txt','LICENSE','README-zh-CN.md')
@@ -180,8 +208,10 @@ foreach ($file in $runtimeFiles) {
 $reportPath = Join-Path $build 'build-report.json'
 [ordered]@{
     schema=1; version=$Version; buildKind='flat-mod-and-drop-in'
-    runtimeReportPath=(Resolve-Path -LiteralPath $RuntimeReportPath).Path
-    runtimeReportSha256=(Get-FileHash -LiteralPath $RuntimeReportPath).Hash
+    runtimeReportPath=if ($RuntimeReportPath) { (Resolve-Path -LiteralPath $RuntimeReportPath).Path }
+    runtimeReportSha256=if ($RuntimeReportPath) { (Get-FileHash -LiteralPath $RuntimeReportPath).Hash }
+    publishedModZipPath=if ($PublishedModZipPath) { $baseline }
+    publishedModSha256=if ($PublishedModZipPath) { $publishedHash }
     modDirectory=$mod; dropInDirectory=$dropin
     modZip=$modZip; modSha256=(Get-FileHash -LiteralPath $modZip).Hash
     dropInZip=$dropinZip; dropInSha256=(Get-FileHash -LiteralPath $dropinZip).Hash

@@ -32,6 +32,9 @@ void Refresh();
 
 #ifdef EJ_INPUT_GUARD_TESTING
 void SetTestSample(Sample sample);
+void SetUiCursorForTest(bool visible);
+void SetPhysicalCursorForTest(POINT point);
+void ClearPhysicalCursorForTest();
 void StopForTest();
 BOOL MovePhysicalCursorForTest(int x, int y);
 #endif

@@ -3,6 +3,7 @@
 /dist/
 **/bin/
 **/obj/
+**/__pycache__/
 *.dll
 *.exe
 *.bin

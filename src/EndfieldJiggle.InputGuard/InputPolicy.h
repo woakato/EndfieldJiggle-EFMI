@@ -5,11 +5,11 @@
 namespace ej::input {
 
 struct Sample {
-    bool enabled, foreground, alt, ctrl, shift, escape, buttons;
+    bool enabled, foreground, alt, ctrl, shift, escape, buttons, leftButton;
 };
 
 struct Decision {
-    bool motion, buttons;
+    bool motion, buttons, draining = false, uiCursor = false;
 };
 
 class Policy {
@@ -26,7 +26,8 @@ public:
             active = true;
         }
         if (!input.buttons || !input.foreground || !input.enabled) drainButtons = false;
-        return {active, active || drainButtons};
+        return {active || drainButtons, active || drainButtons, drainButtons,
+            active && input.leftButton && !drainButtons};
     }
 
 private:
@@ -43,8 +44,15 @@ inline bool IsMotionMessage(UINT message) {
     return message == WM_MOUSEMOVE;
 }
 
+inline bool IsLeftButtonMessage(UINT message) {
+    return message == WM_LBUTTONDOWN || message == WM_LBUTTONUP ||
+        message == WM_LBUTTONDBLCLK;
+}
+
 inline void FilterMessage(MSG& message, Decision decision) {
     if (IsMouseMessage(message.message) &&
+        !(IsLeftButtonMessage(message.message) &&
+            (!decision.draining || message.message == WM_LBUTTONUP)) &&
         (IsMotionMessage(message.message) ? decision.motion : decision.buttons)) {
         message.message = WM_NULL;
         message.wParam = 0;

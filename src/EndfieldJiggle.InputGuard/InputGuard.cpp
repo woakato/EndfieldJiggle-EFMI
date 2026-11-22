@@ -12,6 +12,8 @@ SRWLOCK stateLock = SRWLOCK_INIT;
 Policy policy;
 bool active = false;
 POINT anchor{};
+POINT clickPosition{};
+bool clickLatched = false;
 RECT restoreClip{};
 bool clipped = false;
 std::unordered_map<HANDLE, AbsolutePosition> absolutePositions;
@@ -19,6 +21,9 @@ std::array<void*, 9> targets{};
 size_t targetCount = 0;
 #ifdef EJ_INPUT_GUARD_TESTING
 Sample testSample{};
+bool testUiCursor = false;
+bool testPhysicalCursor = false;
+POINT physicalCursorForTest{};
 #endif
 
 decltype(&GetCursorPos) realGetCursorPos = nullptr;
@@ -38,20 +43,37 @@ struct Exclusive {
 
 bool Held(int key) { return (GetAsyncKeyState(key) & 0x8000) != 0; }
 
+BOOL PhysicalCursor(LPPOINT point) {
+#ifdef EJ_INPUT_GUARD_TESTING
+    if (testPhysicalCursor && point) { *point = physicalCursorForTest; return TRUE; }
+#endif
+    return realGetCursorPos(point);
+}
+
+bool UiCursorVisible() {
+#ifdef EJ_INPUT_GUARD_TESTING
+    return testUiCursor;
+#else
+    CURSORINFO cursor{sizeof(cursor)};
+    return GetCursorInfo(&cursor) && (cursor.flags & CURSOR_SHOWING) != 0;
+#endif
+}
+
 Sample ReadSample() {
 #ifdef EJ_INPUT_GUARD_TESTING
     return testSample;
 #else
     DWORD foregroundPid = 0;
     GetWindowThreadProcessId(GetForegroundWindow(), &foregroundPid);
+    const bool leftButton = Held(VK_LBUTTON);
     return {IsLive(shared, GetTickCount64()), foregroundPid == GetCurrentProcessId(),
         Held(VK_MENU), Held(VK_CONTROL), Held(VK_SHIFT), Held(VK_ESCAPE),
-        Held(VK_LBUTTON) || Held(VK_RBUTTON) || Held(VK_MBUTTON) ||
-        Held(VK_XBUTTON1) || Held(VK_XBUTTON2)};
+        leftButton || Held(VK_RBUTTON) || Held(VK_MBUTTON) ||
+        Held(VK_XBUTTON1) || Held(VK_XBUTTON2), leftButton};
 #endif
 }
 
-Decision Evaluate() {
+Decision Evaluate(POINT* cameraPoint = nullptr, bool visibleUi = false) {
     const DWORD error = GetLastError();
     Exclusive lock;
     const auto sample = ReadSample();
@@ -64,6 +86,13 @@ Decision Evaluate() {
         realClipCursor(&restoreClip);
     }
     active = decision.motion;
+    if (decision.uiCursor && !clickLatched) {
+        clickPosition = anchor;
+        PhysicalCursor(&clickPosition);
+    }
+    clickLatched = decision.uiCursor;
+    if (cameraPoint && decision.motion)
+        *cameraPoint = visibleUi && clickLatched ? clickPosition : anchor;
     SetLastError(error);
     return decision;
 }
@@ -71,16 +100,15 @@ Decision Evaluate() {
 BOOL WINAPI GuardGetCursorPos(LPPOINT point) {
     MEMORY_BASIC_INFORMATION caller{};
     const bool knownCaller = VirtualQuery(_ReturnAddress(), &caller, sizeof(caller)) != 0;
+    const bool uiCaller = knownCaller && caller.AllocationBase == GetModuleHandleW(L"UnityPlayer.dll");
     const bool gameCaller = knownCaller && (caller.AllocationBase == GetModuleHandleW(nullptr) ||
-        caller.AllocationBase == GetModuleHandleW(L"UnityPlayer.dll") ||
+        uiCaller ||
         caller.AllocationBase == GetModuleHandleW(L"GameAssembly.dll"));
     // EFMI and User32 must keep reading the physical cursor for picking.
-    if (!point || !gameCaller) return realGetCursorPos(point);
-    const auto decision = Evaluate();
-    if (!decision.motion) return realGetCursorPos(point);
-    Exclusive lock;
-    *point = anchor;
-    return TRUE;
+    if (!point || !gameCaller) return PhysicalCursor(point);
+    // Keep the click target stable even when a background drag polls Unity coordinates.
+    const auto decision = Evaluate(point, uiCaller && UiCursorVisible());
+    return decision.motion ? TRUE : PhysicalCursor(point);
 }
 
 BOOL WINAPI GuardSetCursorPos(int x, int y) {
@@ -236,6 +264,15 @@ void SetTestSample(Sample sample) {
     }
     Refresh();
 }
+
+void SetUiCursorForTest(bool visible) { testUiCursor = visible; }
+
+void SetPhysicalCursorForTest(POINT point) {
+    physicalCursorForTest = point;
+    testPhysicalCursor = true;
+}
+
+void ClearPhysicalCursorForTest() { testPhysicalCursor = false; }
 
 BOOL MovePhysicalCursorForTest(int x, int y) { return realSetCursorPos(x, y); }
 
